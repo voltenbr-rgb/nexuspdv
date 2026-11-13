@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>nexus_pdv — Gestão simples, venda inteligente</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-theme="dark">
+  <div id="trialBanner" class="trial-banner hidden">
+    <span>⚠️ Você está no Teste Grátis: <strong id="daysRemaining">7</strong> dias restantes.</span>
+    <button id="dismissTrial" class="banner-close" aria-label="Fechar aviso">Fechar ×</button>
+  </div>
+
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="nexus PDV início">
+      <span class="brand-mark">n</span><span>nexus<span class="brand-light">_pdv</span></span>
+    </a>
+    <nav class="desktop-nav">
+      <a href="#recursos">Recursos</a><a href="#como-funciona">Como funciona</a><a href="#planos">Planos</a>
+    </nav>
+    <div class="header-actions">
+      <div class="theme-picker" aria-label="Escolher tema">
+        <button class="theme-dot active" data-theme-choice="dark" title="Dark moderno"></button>
+        <button class="theme-dot blue" data-theme-choice="blue" title="Azul corporativo"></button>
+        <button class="theme-dot green" data-theme-choice="green" title="Verde esmeralda"></button>
+      </div>
+      <button class="btn btn-ghost" id="openLogin">Entrar</button>
+      <button class="btn btn-primary" id="openTrial">Teste grátis <span>7 dias</span></button>
+    </div>
+  </header>
+
+  <main id="landingView">
+    <section class="hero section-wrap">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse"></span> PDV inteligente para pequenos negócios</div>
+        <h1>Sua loja no controle.<br><span class="gradient-text">Suas vendas em movimento.</span></h1>
+        <p class="hero-lead">Venda, acompanhe o estoque e entenda seu negócio em um só lugar. Simples para começar, completo para crescer.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary btn-large" id="heroTrial">Começar teste grátis <span>→</span></button>
+          <a class="btn btn-secondary btn-large" href="#recursos">Conhecer recursos</a>
+        </div>
+        <div class="trust-row"><span>✓ Sem cartão de crédito</span><span>✓ Ativação imediata</span><span>✓ Preparado para uso offline</span></div>
+      </div>
+      <div class="hero-visual">
+        <div class="orb orb-one"></div><div class="orb orb-two"></div>
+        <div class="dashboard-window">
+          <div class="window-top"><div class="window-dots"><i></i><i></i><i></i></div><span>Visão geral · Minha Loja</span><span class="live-tag">● AO VIVO</span></div>
+          <div class="dash-content">
+            <div class="dash-heading"><div><small>QUARTA-FEIRA, 12 NOV</small><h3>Bom dia! 👋</h3></div><div class="avatar">ML</div></div>
+            <div class="metric-grid">
+              <div class="metric-card"><span>Vendas hoje</span><strong>R$ 1.284,50</strong><em class="positive">↑ 12,8%</em></div>
+              <div class="metric-card"><span>Pedidos</span><strong>38</strong><em class="positive">↑ 8,2%</em></div>
+            </div>
+            <div class="chart-card"><div class="chart-title"><b>Desempenho de vendas</b><span>Últimos 7 dias⌄</span></div>
+              <div class="chart-bars"><i style="height:38%"></i><i style="height:56%"></i><i style="height:46%"></i><i style="height:76%"></i><i style="height:62%"></i><i style="height:92%"></i><i style="height:80%"></i></div>
+              <div class="chart-labels"><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span><span>DOM</span></div>
+            </div>
+            <div class="stock-row"><span class="stock-icon">▦</span><div><b>Estoque organizado</b><small>Produtos e alertas em um só painel</small></div><span class="stock-arrow">↗</span></div>
+          </div>
+        </div>
+        <div class="float-card float-sales"><span class="float-icon">↗</span><div><small>Vendas realizadas</small><b>+18,6%</b></div></div>
+        <div class="float-card float-stock"><span class="float-icon green-icon">✓</span><div><small>Estoque sincronizado</small><b>Tudo em dia</b></div></div>
+      </div>
+    </section>
+
+    <section class="proof-strip"><div><strong>01</strong><span>Venda sem complicação</span></div><div><strong>02</strong><span>Estoque sob controle</span></div><div><strong>03</strong><span>Dados do seu negócio</span></div><div><strong>04</strong><span>Continue mesmo offline*</span></div></section>
+
+    <section class="section-wrap features-section" id="recursos">
+      <div class="section-heading"><div class="eyebrow">FEITO PARA O DIA A DIA</div><h2>Menos tarefas manuais.<br><span class="gradient-text">Mais tempo para vender.</span></h2><p>Ferramentas essenciais em uma experiência rápida, clara e fácil de aprender.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card"><div class="feature-icon">▣</div><h3>Frente de caixa ágil</h3><p>Localize produtos, use leitor de código de barras e finalize vendas com poucos toques.</p><span>01 / PDV</span></article>
+        <article class="feature-card"><div class="feature-icon">▤</div><h3>Estoque inteligente</h3><p>Acompanhe entradas, saídas e níveis baixos. Proteja alterações importantes com senha.</p><span>02 / ESTOQUE</span></article>
+        <article class="feature-card"><div class="feature-icon">◷</div><h3>Gestão em tempo real</h3><p>Tenha uma visão objetiva do movimento, dos pedidos e dos indicadores da loja.</p><span>03 / GESTÃO</span></article>
+        <article class="feature-card"><div class="feature-icon">⌁</div><h3>Pronto para ficar offline</h3><p>O protótipo salva dados localmente e mantém as operações disponíveis neste dispositivo.</p><span>04 / OFFLINE-FIRST</span></article>
+      </div>
+    </section>
+
+    <section class="how-section" id="como-funciona"><div class="section-wrap how-inner"><div><div class="eyebrow">COMECE AGORA</div><h2>Da primeira venda<br>ao controle total.</h2><p>Crie sua loja de demonstração e explore o fluxo principal sem configurar servidores.</p><button class="btn btn-primary" id="howTrial">Criar minha demonstração →</button></div><div class="steps"><div><b>1</b><span><strong>Crie sua conta</strong><small>Informe o nome da loja e um acesso.</small></span></div><div><b>2</b><span><strong>Cadastre seus produtos</strong><small>Comece com os itens de exemplo ou adicione os seus.</small></span></div><div><b>3</b><span><strong>Registre suas vendas</strong><small>Use a tela de caixa e acompanhe o resumo.</small></span></div></div></div></section>
+
+    <section class="section-wrap plans-section" id="planos"><div class="section-heading"><div class="eyebrow">SEM PRESSÃO PARA DECIDIR</div><h2>Experimente antes de escolher.</h2><p>Teste os principais recursos por 7 dias. Sem cartão de crédito nesta demonstração.</p></div><div class="plan-card"><div><span class="plan-label">EXPERIÊNCIA COMPLETA</span><h3>Teste grátis por 7 dias</h3><p>Explore o PDV, o estoque e as configurações da sua loja.</p></div><button class="btn btn-primary btn-large" id="planTrial">Ativar meu teste →</button></div></section>
+  </main>
+
+  <main id="appView" class="app-view hidden">
+    <aside class="sidebar"><a class="brand side-brand" href="#"><span class="brand-mark">n</span><span>nexus<span class="brand-light">_pdv</span></span></a>
+      <div class="store-switch"><small>ESTABELECIMENTO</small><b id="storeNameSide">Minha Loja</b><span>● Plano demonstração</span></div>
+      <div class="side-label">OPERAÇÃO</div>
+      <button class="side-link active" data-view="pos"><span>▦</span> Frente de caixa</button>
+      <button class="side-link" data-view="products"><span>▤</span> Produtos e estoque</button>
+      <div class="side-label">GESTÃO</div>
+      <button class="side-link" data-view="admin"><span>⚙</span> Configurações ADM</button>
+      <div class="sidebar-bottom"><div class="offline-indicator"><i></i><span>Dados salvos neste dispositivo</span></div><button id="logoutBtn" class="side-link logout"><span>↪</span> Sair da conta</button></div>
+    </aside>
+    <section class="app-main">
+      <header class="app-topbar"><div><small id="pageEyebrow">OPERAÇÃO</small><h1 id="pageTitle">Frente de caixa</h1></div><div class="topbar-right"><span class="connection-pill"><i></i> Modo local</span><div class="avatar">ML</div></div></header>
+      <section id="posPanel" class="app-panel">
+        <!-- [NEXUS HW] Leitor de código de barras USB (bipador) -->
+        <div class="scanner-bar" id="scannerBar">
+          <label class="scanner-field" for="scannerInput">
+            <span class="scanner-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="2" y="4" width="2" height="16"/><rect x="5.2" y="4" width="1" height="16"/><rect x="7.6" y="4" width="2" height="16"/><rect x="11" y="4" width="1" height="16"/><rect x="13.3" y="4" width="3" height="16"/><rect x="17.6" y="4" width="1" height="16"/><rect x="20" y="4" width="2" height="16"/></svg></span>
+            <input id="scannerInput" type="text" placeholder="Bipe o código de barras ou digite e tecle Enter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus aria-label="Leitor de código de barras">
+          </label>
+          <span id="scannerStatus" class="scanner-status ready" role="status" aria-live="polite"><i></i><span>Leitor USB pronto</span></span>
+          <button id="scannerFocusBtn" class="scanner-key" type="button" title="Devolver o foco ao leitor (F2)"><kbd>F2</kbd> Focar leitor</button>
+        </div>
+        <div id="scannerAlert" class="scanner-alert hidden" role="alert">
+          <span>⚠️ Produto não cadastrado: <b id="scannerAlertCode"></b></span>
+          <button id="scannerQuickAdd" class="btn btn-primary btn-small" type="button">＋ Cadastrar agora</button>
+          <button id="scannerAlertClose" class="scanner-alert-x" type="button" aria-label="Fechar aviso">×</button>
+        </div>
+        <!-- [/NEXUS HW] -->
+        <div class="pos-layout"><div class="catalog-area"><div class="panel-toolbar"><div><h2>Produtos</h2><p>Selecione um item para adicionar à venda.</p></div><input id="productSearch" class="search-input" placeholder="⌕  Buscar ou bipar código..." autocomplete="off"></div><div id="categoryChips" class="category-chips"><button class="chip active" data-category="Todos">Todos</button><button class="chip" data-category="Mercearia">Mercearia</button><button class="chip" data-category="Bebidas">Bebidas</button><button class="chip" data-category="Limpeza">Limpeza</button></div><div id="productGrid" class="product-grid"></div></div>
+          <aside class="cart-panel"><div class="cart-header"><div><h2>Venda atual</h2><p id="cartCount">0 itens</p></div><button id="clearCart" class="text-button">Limpar</button></div><div id="cartItems" class="cart-items"><div class="empty-cart">Seu carrinho está vazio.<br><small>Adicione produtos para começar.</small></div></div><div class="cart-footer"><div class="subtotal-row"><span>Subtotal</span><b id="subtotalValue">R$ 0,00</b></div><div class="total-row"><span>Total</span><strong id="totalValue">R$ 0,00</strong></div><button id="checkoutBtn" class="btn btn-primary checkout-btn" disabled>Finalizar venda <span>F4 →</span></button><!-- [NEXUS HW] --><button id="reprintBtn" class="btn btn-secondary reprint-btn" type="button" disabled>🖨 Reimprimir último recibo</button><!-- [/NEXUS HW] --><small class="cart-note">A venda de demonstração é salva localmente.</small></div></aside>
+        </div>
+      </section>
+      <section id="productsPanel" class="app-panel hidden"><div class="panel-toolbar"><div><h2>Produtos e estoque</h2><p>Gerencie os itens cadastrados na sua loja.</p></div><button id="addProductBtn" class="btn btn-primary">＋ Novo produto</button></div><div class="table-wrap"><table><thead><tr><th>PRODUTO</th><th>CATEGORIA</th><th>CÓDIGO</th><th>PREÇO</th><th>ESTOQUE</th><th>AÇÕES</th></tr></thead><tbody id="inventoryTable"></tbody></table></div></section>
+      <section id="adminPanel" class="app-panel hidden"><div class="settings-grid"><div class="settings-intro"><div class="eyebrow">CONTROLE DA LOJA</div><h2>Configurações<br>administrativas.</h2><p>Defina como sua equipe acessa operações sensíveis e personalize a experiência.</p></div><div class="settings-card"><div class="settings-card-head"><span class="settings-icon">⌑</span><div><h3>Proteção de estoque</h3><p>Exija uma senha mestre para alterações sensíveis.</p></div></div><label class="toggle-line"><span><b>Ativar senha de autorização</b><small>Protege alteração de preço, exclusão e ações administrativas.</small></span><input type="checkbox" id="stockProtectionToggle"><i class="toggle"></i></label><div id="passwordSettings" class="password-settings"><label for="masterPassword">Senha mestre</label><input id="masterPassword" type="password" placeholder="Mínimo de 4 caracteres"><label for="masterPasswordConfirm">Confirmar senha</label><input id="masterPasswordConfirm" type="password" placeholder="Repita a senha"><button id="saveSecurityBtn" class="btn btn-primary">Salvar proteção</button><small id="securityStatus" class="status-text"></small></div><div class="security-footnote">Este protótipo guarda a configuração apenas neste navegador. Em produção, valide permissões e senhas no servidor.</div></div>
+        <div class="settings-card appearance-card"><div class="settings-card-head"><span class="settings-icon">◐</span><div><h3>Aparência do sistema</h3><p>Escolha a paleta que combina com sua loja.</p></div></div><div class="theme-options"><button data-theme-choice="dark"><i></i><span>Dark moderno</span></button><button data-theme-choice="blue"><i></i><span>Azul corporativo</span></button><button data-theme-choice="green"><i></i><span>Verde esmeralda</span></button></div></div>
+        <!-- [NEXUS HW] Configuração de Hardware (PDV) -->
+        <div class="settings-card hardware-card"><div class="settings-card-head"><span class="settings-icon">🖨</span><div><h3>Configuração de Hardware (PDV)</h3><p>Impressora térmica de recibos e leitor de código de barras.</p></div></div>
+          <div class="hw-layout">
+            <div class="hw-form">
+              <span class="hw-label">Largura do papel térmico</span>
+              <div class="paper-options">
+                <label><input type="radio" name="hwPaper" value="58"><span><b>58 mm</b><small>Mini impressoras</small></span></label>
+                <label><input type="radio" name="hwPaper" value="80"><span><b>80 mm</b><small>Padrão de balcão</small></span></label>
+              </div>
+              <label class="hw-label" for="hwStoreName">Nome da loja (cabeçalho)</label>
+              <input id="hwStoreName" maxlength="40" placeholder="Ex.: Empório da Vila">
+              <label class="hw-label" for="hwDocument">CNPJ / CPF</label>
+              <input id="hwDocument" maxlength="24" placeholder="00.000.000/0001-00">
+              <label class="hw-label" for="hwContact">Telefone / Endereço</label>
+              <textarea id="hwContact" rows="2" maxlength="120" placeholder="(67) 99999-0000&#10;Rua Exemplo, 123 - Centro"></textarea>
+              <label class="hw-label" for="hwFooter">Mensagem de rodapé</label>
+              <textarea id="hwFooter" rows="2" maxlength="160"></textarea>
+              <div class="hw-actions">
+                <button id="saveHardwareBtn" class="btn btn-primary" type="button">Salvar configuração</button>
+                <button id="testPrintBtn" class="btn btn-secondary" type="button">🖨 Imprimir cupom de teste</button>
+              </div>
+              <small id="hardwareStatus" class="status-text"></small>
+            </div>
+            <div class="hw-preview-wrap"><span class="hw-label">Pré-visualização</span><div id="hwPreview" class="hw-preview"></div></div>
+          </div>
+          <div class="security-footnote">Dica: na janela de impressão, escolha a impressora térmica, defina <b>Margens: Nenhuma</b> e desmarque <b>Cabeçalhos e rodapés</b>. No Chrome, o modo quiosque (<code>--kiosk-printing</code>) imprime direto, sem diálogo. O leitor USB funciona como teclado: não precisa de driver.</div>
+        </div>
+        <!-- [/NEXUS HW] -->
+        </div></section>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>© 2026 nexus_pdv. Feito para simplificar o varejo.</span><span class="footer-right">Simples para começar. Pronto para crescer. <button id="secretDot" aria-label="Informações da plataforma" title="•">·</button></span></footer>
+
+  <div id="authModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-card"><button class="modal-x" data-close-modal>×</button><div class="modal-brand"><span class="brand-mark">n</span></div><div class="eyebrow">BEM-VINDA AO NEXUS</div><h2 id="modalTitle">Acesse sua loja.</h2><p id="modalDescription">Entre com os dados do seu estabelecimento.</p><form id="authForm"><label for="companyName" id="companyLabel">Nome da loja</label><input id="companyName" placeholder="Ex.: Empório da Vila" required><label for="emailInput">E-mail</label><input id="emailInput" type="email" placeholder="voce@loja.com" required><label for="passwordInput">Senha</label><input id="passwordInput" type="password" placeholder="Mínimo de 4 caracteres" minlength="4" required><div id="authError" class="form-error"></div><button id="authSubmit" class="btn btn-primary modal-submit" type="submit">Entrar na minha loja →</button></form><div class="modal-switch" id="modalSwitch">Ainda não tem conta? <button id="switchAuthMode">Criar conta grátis</button></div><div class="modal-safe">🔒 Seus dados de demonstração ficam neste dispositivo.</div></div></div>
+
+  <div id="secretPanel" class="secret-panel hidden"><button id="closeSecret" class="modal-x">×</button><div class="eyebrow">NEXUS NETWORK</div><h3>Comunidade nexus_pdv</h3><strong id="clientCount">1.284</strong><p>clientes cadastrados na plataforma</p><small>Contador ilustrativo para demonstração.</small></div>
+  <!-- [NEXUS HW] Modal de finalização (pagamento, troco e impressão) -->
+  <div id="checkoutModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle"><div class="modal-card checkout-card"><button class="modal-x" data-close-checkout>×</button><div class="eyebrow">FINALIZAR VENDA</div><h2 id="checkoutTitle">Total: <span id="checkoutTotal">R$ 0,00</span></h2><p>Escolha a forma de pagamento.</p>
+    <div class="pay-options" id="payOptions">
+      <label><input type="radio" name="payMethod" value="Dinheiro" checked><span>💵 Dinheiro</span></label>
+      <label><input type="radio" name="payMethod" value="Pix"><span>⚡ Pix</span></label>
+      <label><input type="radio" name="payMethod" value="Cartão de débito"><span>💳 Débito</span></label>
+      <label><input type="radio" name="payMethod" value="Cartão de crédito"><span>💳 Crédito</span></label>
+    </div>
+    <div id="cashBox" class="cash-box"><label for="cashReceived">Valor recebido</label><input id="cashReceived" inputmode="decimal" placeholder="Deixe vazio se for o valor exato" autocomplete="off"><div class="change-row"><span>Troco</span><strong id="changeValue">R$ 0,00</strong></div></div>
+    <label class="print-check"><input type="checkbox" id="printAfterSale" checked><span>Imprimir comprovante após finalizar</span></label>
+    <div id="checkoutError" class="form-error"></div>
+    <button id="confirmSaleBtn" class="btn btn-primary modal-submit" type="button">Confirmar venda <span>Enter ↵</span></button>
+  </div></div>
+
+  <!-- [NEXUS HW] Modal de cadastro rápido de produto -->
+  <div id="productModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="productModalTitle"><div class="modal-card"><button class="modal-x" data-close-product>×</button><div class="eyebrow">CADASTRO RÁPIDO</div><h2 id="productModalTitle">Novo produto</h2><p>O caixa continua aberto enquanto você cadastra.</p>
+    <form id="productForm">
+      <label for="pfCode">Código de barras</label><input id="pfCode" autocomplete="off" placeholder="Bipe ou digite o código">
+      <label for="pfName">Nome do produto</label><input id="pfName" required maxlength="60" placeholder="Ex.: Leite integral 1L">
+      <div class="form-cols"><div><label for="pfPrice">Preço (R$)</label><input id="pfPrice" inputmode="decimal" required placeholder="0,00"></div><div><label for="pfStock">Estoque inicial</label><input id="pfStock" type="number" min="0" step="1" value="0"></div></div>
+      <label for="pfCategory">Categoria</label><select id="pfCategory"><option>Mercearia</option><option>Bebidas</option><option>Limpeza</option></select>
+      <div id="productFormError" class="form-error"></div>
+      <button class="btn btn-primary modal-submit" type="submit" id="productFormSubmit">Cadastrar produto →</button>
+    </form>
+  </div></div>
+
+  <!-- [NEXUS HW] Recibo térmico: oculto na tela, visível só na impressão -->
+  <div id="receiptPrint" class="receipt-print" aria-hidden="true"></div>
+  <!-- [/NEXUS HW] -->
+  <div id="toast" class="toast"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
