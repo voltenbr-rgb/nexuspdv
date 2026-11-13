@@ -1,55 +1,49 @@
-# nexus_pdv — protótipo front-end
+# Nexus PDV
 
-## Arquivos
-- `index.html`: landing page, modais e estrutura do PDV.
-- `styles.css`: identidade visual, três temas e layout responsivo.
-- `app.js`: autenticação demonstrativa, fluxo do caixa, estoque, teste de 7 dias e configurações.
-- `db.js`: persistência por `empresa_id` usando IndexedDB.
+Frente de caixa (PDV) para pequenos negócios, no Cloudflare Pages com banco D1 `nexuspdv`.
 
-## Executar localmente
-Como os módulos ES usam `type="module"`, abra por um servidor HTTP local (não via `file://`).
+## Estrutura
+| Arquivo | O que faz |
+|---|---|
+| `index.html`, `styles.css`, `app.js`, `db.js` | Site e app do caixa (funciona offline; os dados do caixa ficam no aparelho, em IndexedDB `nexuspdv`) |
+| `functions/api/[[path]].js` | API na Cloudflare: cadastro/login, caixa ligado, mensagens, Área Master e manifesto do app |
+| `schema.sql` | Tabelas do banco D1 (já criadas no `nexuspdv`) |
+| `wrangler.toml` | Liga o projeto ao banco D1 `nexuspdv` (binding `DB`) automaticamente |
+| `sw.js`, `icons/` | App instalável (PWA) |
+| `_headers` | Cabeçalhos de segurança e cache |
 
-Exemplo com Python:
-```bash
-python -m http.server 8000
-```
-Acesse `http://localhost:8000`.
+## App instalável
+Depois do login, o app passa a se chamar **"PDV + nome da loja"** (ex.: *PDV Loja Eric*), no celular e no computador.
+No Android/Chrome aparece o botão **Instalar app**. No iPhone: Compartilhar → Adicionar à Tela de Início.
 
-## O que funciona neste protótipo
-- Landing page responsiva com alternância Dark / Azul / Esmeralda.
-- Cadastro de loja de demonstração e login local por e-mail/senha.
-- `empresa_id` isolando os dados de cada loja no IndexedDB.
-- Período demonstrativo de 7 dias.
-- Aviso de teste que, ao ser fechado, fica oculto por 24 horas via timestamp no `localStorage`.
-- PDV demonstrativo com busca por nome/código, carrinho, quantidade e finalização de venda.
-- Produtos e estoque com cadastro, edição e exclusão.
-- Configuração de senha mestre para proteger ações sensíveis.
-- Easter egg discreto com contador ilustrativo.
+## Tema
+Branco com laranja (padrão), branco com amarelo ou escuro: escolha em Configurações ADM → Aparência.
 
-## Limitações importantes antes de produção
-Este é um protótipo executável no navegador, não um SaaS multi-tenant seguro. O `empresa_id` no cliente não constitui isolamento de segurança. IndexedDB e `localStorage` podem ser apagados ou manipulados pelo usuário. O hash local da senha não substitui autenticação segura. Para produção, implemente API/backend, banco de dados com isolamento por tenant (ex.: políticas RLS), autenticação com hash forte no servidor (Argon2id/bcrypt), autorização por função, auditoria, sincronização offline com fila/outbox, resolução de conflitos, backups e validação de assinatura no servidor. A regra dos 7 dias e o contador de clientes também precisam ser calculados no backend para não serem adulteráveis.
+## Área Master
+Botão redondo pequeno no rodapé, à direita.
+- Primeiro acesso: código de configuração (de uso único) + criação da senha master (mín. 8 caracteres).
+- Quantas lojas estão cadastradas e quantos caixas estão ligados agora (ícone verde).
+- Status por cor: **verde** ativo (pago) · **amarelo** em teste ou pagamento pendente (até 7 dias do vencimento) · **vermelho** desativado ou vencido há mais de 7 dias.
+- Ativar pacotes: Básico, Completo ou Premium por 15 dias, 30 dias, 3 meses, 6 meses ou 1 ano (soma ao tempo que ainda resta).
+- Redefinir senha do cliente: gera uma senha provisória, e o cliente cria uma nova no próximo login. Ninguém consegue ver as senhas, porque ficam só em hash.
+- Desativar/reativar loja.
+- Mensagens para todas as lojas (informação, aviso ou urgente).
+- A Área Master **não** acessa estoque nem vendas das lojas.
 
-## Periféricos de balcão (atualização)
-Todos os trechos novos estão marcados com `[NEXUS HW]` no HTML, CSS e JS.
+Opcional: para usar uma senha master definida no painel da Cloudflare em vez da criada no primeiro acesso, crie o segredo `MASTER_PASSWORD` em *Settings → Variables and Secrets*.
 
-### Leitor de código de barras USB (bipador)
-- Barra fixa no topo da Frente de caixa, com foco automático e status (🟢 pronto / 🟡 pausado / 🔴 não encontrado).
-- Código encontrado: adiciona 1 unidade, toca um bipe (Web Audio API) e limpa o campo.
-- Código desconhecido: aviso discreto com botão **Cadastrar agora**. O produto é salvo com o código e já entra na venda.
-- O foco volta sozinho ao leitor depois de cliques no PDV. **F2** devolve o foco de qualquer tela.
-- Mesmo sem foco em nenhum campo, uma bipagem rápida é capturada e processada.
-- Aceita leitores configurados com sufixo Enter ou Tab.
+## Planos (ilustrativos)
+Básico R$ 39,90 · Completo R$ 99,90 · Premium R$ 189,90 por mês.
 
-### Impressora térmica (comprovante não fiscal)
-- **Configurações ADM → Configuração de Hardware (PDV)**: papel 58/80 mm, cabeçalho (nome, CNPJ/CPF, telefone/endereço), rodapé, pré-visualização ao vivo e **Imprimir cupom de teste**.
-- **Finalizar venda (F4)**: escolha da forma de pagamento, valor recebido e troco, mais a opção "Imprimir comprovante após finalizar" (já marcada). Enter confirma.
-- **Reimprimir último recibo** no rodapé do carrinho.
-- Na impressão, sai só o recibo: fonte monoespaçada, preto no branco, margem zero. A altura da página é ajustada ao tamanho do cupom.
-- Para imprimir sem a janela de diálogo, abra o Chrome do caixa com `--kiosk-printing` e deixe a térmica como impressora padrão.
+## Periféricos
+- **Leitor de código de barras USB:** barra no topo do caixa, bipe sonoro, cadastro rápido de código desconhecido. Atalhos: F2 foca o leitor, F4 finaliza a venda, Esc fecha janelas.
+- **Impressora térmica 58/80 mm:** recibo não fiscal, configurável em Configurações ADM → Configuração de Hardware. Para imprimir sem diálogo, abra o Chrome com `--kiosk-printing`.
 
-### Atalhos
-F2 = focar leitor · F4 = finalizar venda · Enter = confirmar · Esc = fechar janela
+## Segurança
+- Senhas com PBKDF2-SHA256 (100 mil iterações) e tokens de sessão guardados só em hash.
+- Limite de tentativas de login (loja e master).
+- Quando a Área Master redefine a senha ou desativa uma loja, as sessões dela caem na hora.
 
-### Banco local
-O IndexedDB agora se chama `nexuspdv`. Os dados do nome antigo (`nexus_pdv_db`) são copiados automaticamente no primeiro acesso.
-Cada loja tem os novos campos `hardware`, `saleSeq` e, em cada venda, `number`, `payment`, `received` e `change`.
+## Próximos passos
+- Sincronizar produtos e vendas com o D1 (hoje ficam no aparelho).
+- Pix com Mercado Pago (token guardado como segredo no servidor).

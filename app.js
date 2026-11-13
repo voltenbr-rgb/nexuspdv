@@ -23,13 +23,18 @@ function toast(message) {
   const el = $("#toast"); el.textContent = message; el.classList.add("show");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2800);
 }
+// [NEXUS THEME] tema de caixa: laranja (padrão), amarelo ou escuro
+const THEMES = { laranja: "#f97316", amarelo: "#f59e0b", dark: "#0b1020" };
 function setTheme(theme) {
+  if (!THEMES[theme]) theme = "laranja";
   document.body.dataset.theme = theme;
-  localStorage.setItem("nexus_theme", theme);
+  document.body.classList.toggle("theme-light", theme !== "dark");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEMES[theme]);
+  localStorage.setItem("nexus_theme_v2", theme);
   $$("[data-theme-choice]").forEach(b => b.classList.toggle("active", b.dataset.themeChoice === theme));
 }
 $$("[data-theme-choice]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeChoice)));
-setTheme(localStorage.getItem("nexus_theme") || "dark");
+setTheme(localStorage.getItem("nexus_theme_v2") || "laranja");
 
 function showModal(mode) {
   authMode = mode;
@@ -37,6 +42,7 @@ function showModal(mode) {
   $("#authError").textContent = "";
   $("#companyName").classList.toggle("hidden", mode === "login");
   $("#companyLabel").classList.toggle("hidden", mode === "login");
+  $("#companyName").required = mode !== "login"; // campo escondido não pode bloquear o "Entrar"
   $("#modalTitle").textContent = mode === "login" ? "Acesse sua loja." : "Crie sua loja.";
   $("#modalDescription").textContent = mode === "login" ? "Entre com os dados do seu estabelecimento." : "Sua demonstração fica pronta em instantes.";
   $("#authSubmit").textContent = mode === "login" ? "Entrar na minha loja →" : "Criar conta e começar →";
@@ -45,7 +51,7 @@ function showModal(mode) {
 }
 function closeModal() { $("#authModal").classList.add("hidden"); }
 $("#openLogin").addEventListener("click", () => showModal("login"));
-["openTrial","heroTrial","howTrial","planTrial"].forEach(id => $("#"+id).addEventListener("click", () => showModal("register")));
+["openTrial","heroTrial","howTrial"].forEach(id => $("#"+id).addEventListener("click", () => showModal("register")));
 $$("[data-close-modal]").forEach(b => b.addEventListener("click", closeModal));
 $("#authModal").addEventListener("click", e => { if (e.target.id === "authModal") closeModal(); });
 
@@ -56,63 +62,83 @@ async function hashDemoPassword(password) {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
 }
+// [NEXUS CLOUD] Cadastro e login pela nuvem (D1), com modo local quando não há conexão.
 $("#authForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const err = $("#authError"), btn = $("#authSubmit");
+  err.textContent = "";
   const email = $("#emailInput").value.trim().toLowerCase();
   const password = $("#passwordInput").value;
   const passwordHash = await hashDemoPassword(password);
+  btn.disabled = true;
   try {
-    if (authMode === "register") {
-      const existing = await findCompanyByEmail(email);
-      if (existing) { $("#authError").textContent = "Este e-mail já possui uma loja neste navegador. Entre na conta."; return; }
-      const startedAt = now();
-      currentCompany = {
-        empresa_id: makeCompanyId(), storeName: $("#companyName").value.trim(), email, passwordHash,
-        createdAt: startedAt, trialEndsAt: startedAt + TRIAL_MS, trialDismissedAt: 0,
-        products: structuredClone(DEMO_PRODUCTS), sales: [], security: { enabled: false, passwordHash: "" }
-      };
-      await saveCompany(currentCompany);
-    } else {
-      currentCompany = await findCompanyByEmail(email);
-      if (!currentCompany || currentCompany.passwordHash !== passwordHash) {
-        $("#authError").textContent = "E-mail ou senha não conferem neste dispositivo."; return;
-      }
-    }
-    sessionStorage.setItem("nexus_current_company", currentCompany.empresa_id);
+    const result = authMode === "register"
+      ? await registerFlow({ storeName: $("#companyName").value.trim(), email, password, passwordHash })
+      : await loginFlow({ email, password, passwordHash });
+    if (result.error) { err.textContent = result.error; return; }
+    currentCompany = result.company;
+    localStorage.setItem("nexus_current_company", currentCompany.empresa_id);
+    $("#authForm").reset();
     closeModal(); enterApp();
-  } catch (err) { console.error(err); $("#authError").textContent = "Não foi possível salvar os dados. Verifique se o navegador permite armazenamento local."; }
+    if (result.mustChangePassword) openPasswordModal();
+    if (result.localOnly) toast("Sem conexão com a nuvem: usando o modo local deste aparelho.");
+  } catch (ex) {
+    console.error(ex);
+    err.textContent = "Não foi possível salvar os dados. Verifique se o navegador permite armazenamento local.";
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 async function loadSession() {
-  const id = sessionStorage.getItem("nexus_current_company");
+  const id = localStorage.getItem("nexus_current_company");
   if (!id) return;
   const company = await getCompany(id);
-  if (company) { currentCompany = company; enterApp(); }
+  if (company) { currentCompany = company; enterApp(); if (company.server?.mustChangePassword && getToken()) openPasswordModal(); }
 }
 function persist() { return saveCompany(currentCompany); }
 function enterApp() {
   $("#landingView").classList.add("hidden"); $("#appView").classList.remove("hidden");
+  document.body.classList.add("in-app");
   $("#storeNameSide").textContent = currentCompany.storeName;
+  applyBranding(currentCompany.storeName);            // [NEXUS CLOUD] app vira "PDV <loja>"
+  setConnection(false); renderPlanStatus(); renderBlocked();
   renderProducts(); renderInventory(); updateCart(); renderTrialBanner();
   showPanel("pos");
+  startHeartbeat();
 }
 function exitApp() {
-  sessionStorage.removeItem("nexus_current_company"); currentCompany = null; cart = [];
+  stopHeartbeat();
+  const token = getToken();
+  if (token) api("auth/logout", { token }).catch(() => {});
+  clearToken();
+  localStorage.removeItem("nexus_current_company");
+  currentCompany = null; cart = [];
+  applyBranding("");
+  $("#broadcastArea").innerHTML = "";
+  $("#blockedOverlay").classList.add("hidden");
+  $("#passwordModal").classList.add("hidden");
   $("#appView").classList.add("hidden"); $("#landingView").classList.remove("hidden");
+  document.body.classList.remove("in-app");
   $("#trialBanner").classList.add("hidden");
 }
-$("#logoutBtn").addEventListener("click", exitApp);
+$("#logoutBtn").addEventListener("click", () => exitApp());
 
 function renderTrialBanner() {
-  const banner = $("#trialBanner");
+  const banner = $("#trialBanner"), text = banner.querySelector("span");
   if (!currentCompany) { banner.classList.add("hidden"); return; }
-  const remaining = currentCompany.trialEndsAt - now();
-  if (remaining <= 0) { banner.classList.remove("hidden"); $("#daysRemaining").textContent = "0"; banner.querySelector("span").innerHTML = "⚠️ Seu período de teste terminou. Escolha um plano para continuar."; return; }
+  const code = currentCompany.server?.status?.code;
+  if (code === "ativo" || code === "desativado") { banner.classList.add("hidden"); return; }
   const hiddenAt = Number(localStorage.getItem(`nexus_banner_hidden_${currentCompany.empresa_id}`) || 0);
   if (now() - hiddenAt < HIDE_MS) { banner.classList.add("hidden"); return; }
+  if (code === "pendente") {
+    text.innerHTML = "⚠️ Pagamento pendente: regularize seu plano para não ter o acesso suspenso.";
+    banner.classList.remove("hidden"); return;
+  }
+  const remaining = currentCompany.trialEndsAt - now();
+  if (remaining <= 0) { text.innerHTML = "⚠️ Seu período de teste terminou. Escolha um plano para continuar."; banner.classList.remove("hidden"); return; }
   const days = Math.max(1, Math.ceil(remaining / (24*60*60*1000)));
-  $("#daysRemaining").textContent = days;
-  banner.querySelector("span").innerHTML = `⚠️ Você está no Teste Grátis: <strong id="daysRemaining">${days}</strong> dias restantes.`;
+  text.innerHTML = `⚠️ Você está no Teste Grátis: <strong id="daysRemaining">${days}</strong> ${days === 1 ? "dia restante" : "dias restantes"}.`;
   banner.classList.remove("hidden");
 }
 $("#dismissTrial").addEventListener("click", () => {
@@ -232,9 +258,6 @@ $("#saveSecurityBtn").addEventListener("click", async () => {
   loadSecuritySettings(); toast("Configuração de segurança salva.");
 });
 
-$("#secretDot").addEventListener("click", () => $("#secretPanel").classList.toggle("hidden"));
-$("#closeSecret").addEventListener("click", () => $("#secretPanel").classList.add("hidden"));
-$("#clientCount").textContent = (1240 + Math.floor(Math.random()*90)).toLocaleString("pt-BR");
 
 // ==========================================================================
 // [NEXUS HW] Periféricos de balcão: leitor de código de barras USB e impressora térmica
@@ -243,7 +266,7 @@ const HW_DEFAULTS = { paperWidth: "80", storeName: "", document: "", contact: ""
 function getHardware() {
   return { ...HW_DEFAULTS, storeName: currentCompany?.storeName || "", ...(currentCompany?.hardware || {}) };
 }
-const isModalOpen = () => $$(".modal-backdrop").some(m => !m.classList.contains("hidden"));
+const isModalOpen = () => $$(".modal-backdrop, .master-view, .blocked-overlay").some(m => !m.classList.contains("hidden"));
 const isPosVisible = () => Boolean(currentCompany) && !$("#appView").classList.contains("hidden") && !$("#posPanel").classList.contains("hidden");
 const isTypingTarget = (el) => Boolean(el?.matches?.("input, textarea, select, [contenteditable='true']"));
 function parseMoney(value) {
@@ -595,6 +618,472 @@ $("#saveHardwareBtn").addEventListener("click", async () => {
 $("#testPrintBtn").addEventListener("click", () => printReceipt(testSale(), readHardwareForm()));
 // [/NEXUS HW]
 
-window.addEventListener("online", () => toast("Conexão detectada. Os dados continuam salvos localmente."));
-window.addEventListener("offline", () => toast("Você está offline. O modo local continua disponível."));
+// ==========================================================================
+// [NEXUS CLOUD] Nuvem (Cloudflare D1), app instalável (PWA) e Área Master
+// ==========================================================================
+const TOKEN_KEY = "nexus_token";
+const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
+const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
+const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const fmtDate = (ts) => ts ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(ts) : "—";
+const fmtDateTimeShort = (ts) => ts ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(ts) : "—";
+
+async function api(path, { method = "POST", body, token = getToken(), timeout = 10000 } = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(`/api/${path}`, {
+      method,
+      headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: body && method !== "GET" && method !== "DELETE" ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal
+    });
+    let data = null;
+    try { data = await res.json(); } catch { /* resposta sem JSON */ }
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+// Servidor fora do ar, sem internet ou API ainda não publicada
+const serverUnavailable = (r) => r.status === 0 || r.status === 404 || r.status >= 500;
+
+const AUTH_ERRORS = {
+  invalid_email: "Informe um e-mail válido.",
+  weak_password: "A senha precisa ter pelo menos 4 caracteres.",
+  store_name_required: "Informe o nome da loja.",
+  email_exists: "Este e-mail já tem uma loja cadastrada. Use Entrar.",
+  invalid_credentials: "E-mail ou senha incorretos.",
+  too_many_attempts: "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+};
+
+function newLocalCompany({ empresa_id, storeName, email, passwordHash }) {
+  const startedAt = now();
+  return {
+    empresa_id, storeName, email, passwordHash,
+    createdAt: startedAt, trialEndsAt: startedAt + TRIAL_MS, trialDismissedAt: 0,
+    products: structuredClone(DEMO_PRODUCTS), sales: [], security: { enabled: false, passwordHash: "" }
+  };
+}
+function applyServerStore(company, srv) {
+  company.server = {
+    status: srv.status, plan: srv.plan, planName: srv.planName, planExpiresAt: srv.planExpiresAt,
+    trialEndsAt: srv.trialEndsAt, mustChangePassword: Boolean(srv.mustChangePassword)
+  };
+  company.trialEndsAt = srv.trialEndsAt;
+}
+async function upsertLocalCompany(srv, passwordHash) {
+  let company = await getCompany(srv.id);
+  company ||= newLocalCompany({ empresa_id: srv.id, storeName: srv.storeName, email: srv.email, passwordHash });
+  company.storeName = srv.storeName;
+  company.email = srv.email;
+  company.passwordHash = passwordHash; // permite entrar sem internet neste aparelho
+  applyServerStore(company, srv);
+  await saveCompany(company);
+  return company;
+}
+
+async function registerFlow({ storeName, email, password, passwordHash }) {
+  if (!storeName) return { error: AUTH_ERRORS.store_name_required };
+  const empresa_id = makeCompanyId();
+  const r = await api("auth/register", { body: { storeName, email, password, empresaId: empresa_id }, token: "" });
+  if (r.ok) {
+    setToken(r.data.token);
+    return { company: await upsertLocalCompany(r.data.store, passwordHash) };
+  }
+  if (!serverUnavailable(r)) return { error: AUTH_ERRORS[r.data?.error] || "Não foi possível criar a conta." };
+  // Sem servidor: cria a loja só neste aparelho. Ela sobe para a nuvem no próximo login com internet.
+  if (await findCompanyByEmail(email)) return { error: "Este e-mail já possui uma loja neste aparelho. Use Entrar." };
+  const company = newLocalCompany({ empresa_id, storeName, email, passwordHash });
+  await saveCompany(company);
+  return { company, localOnly: true };
+}
+
+async function loginFlow({ email, password, passwordHash }) {
+  const r = await api("auth/login", { body: { email, password }, token: "" });
+  if (r.ok) {
+    setToken(r.data.token);
+    return { company: await upsertLocalCompany(r.data.store, passwordHash), mustChangePassword: r.data.store.mustChangePassword };
+  }
+  if (r.status === 401) {
+    // Loja criada antes da nuvem existir: envia para o servidor mantendo o mesmo código da loja
+    const local = await findCompanyByEmail(email);
+    if (local && !local.server && local.passwordHash === passwordHash) {
+      const reg = await api("auth/register", { body: { storeName: local.storeName, email, password, empresaId: local.empresa_id }, token: "" });
+      if (reg.ok) {
+        setToken(reg.data.token);
+        toast("Sua loja foi conectada à nuvem.");
+        return { company: await upsertLocalCompany(reg.data.store, passwordHash) };
+      }
+    }
+    return { error: AUTH_ERRORS.invalid_credentials };
+  }
+  if (!serverUnavailable(r)) return { error: AUTH_ERRORS[r.data?.error] || "Não foi possível entrar." };
+  const local = await findCompanyByEmail(email);
+  if (local && local.passwordHash === passwordHash) return { company: local, localOnly: true };
+  return { error: "Sem conexão com o servidor, e esta loja ainda não foi aberta neste aparelho." };
+}
+
+// ---------- Nome do app: "PDV + nome da loja" ----------
+function applyBranding(name) {
+  const label = name ? `PDV ${name}` : "Nexus PDV";
+  document.title = name ? label : "Nexus PDV — Frente de caixa simples e inteligente";
+  $("#appleTitle").setAttribute("content", label);
+  $("#manifestLink").setAttribute("href", name ? `/api/manifest?loja=${encodeURIComponent(name)}` : "/api/manifest");
+  try { name ? localStorage.setItem("nexus_store_name", name) : localStorage.removeItem("nexus_store_name"); } catch {}
+  const initials = (name || "Minha Loja").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  $("#storeAvatar").textContent = initials || "PD";
+}
+
+// ---------- Status do plano, conexão e bloqueio ----------
+function setConnection(online) {
+  const pill = $("#connectionPill");
+  pill.classList.toggle("online", online);
+  pill.classList.toggle("local", !online);
+  pill.querySelector("span").textContent = online ? "Conectado à nuvem" : "Modo local";
+}
+function renderPlanStatus() {
+  const el = $("#storePlanStatus");
+  const s = currentCompany?.server;
+  let text = "● Modo local (sem nuvem)", cls = "st-yellow";
+  if (s) {
+    const code = s.status?.code;
+    if (code === "ativo") { text = `● ${s.status.label} · até ${fmtDate(s.planExpiresAt)}`; cls = "st-green"; }
+    else if (code === "teste") {
+      const days = Math.max(0, Math.ceil((s.trialEndsAt - now()) / DAY_MS));
+      text = `● Teste grátis · ${days} ${days === 1 ? "dia" : "dias"}`;
+    }
+    else if (code === "pendente") text = "● Pagamento pendente";
+    else if (code === "desativado") { text = "● Acesso suspenso"; cls = "st-red"; }
+  }
+  el.textContent = text;
+  el.className = cls;
+}
+function renderBlocked() {
+  const s = currentCompany?.server;
+  const blocked = s?.status?.code === "desativado";
+  $("#blockedOverlay").classList.toggle("hidden", !blocked);
+  if (blocked) {
+    $("#blockedText").textContent = s.status.label === "Vencido"
+      ? "Seu plano venceu há mais de 7 dias. Fale com o suporte para reativar o seu PDV."
+      : "Seu acesso foi desativado. Fale com o suporte para reativar o seu PDV.";
+    document.activeElement?.blur?.();
+  }
+}
+$("#blockedLogout").addEventListener("click", () => exitApp());
+
+// ---------- Mensagens da Área Master ----------
+const dismissedKey = () => `nexus_bc_dismissed_${currentCompany?.empresa_id}`;
+function renderBroadcasts(list = []) {
+  let dismissed = [];
+  try { dismissed = JSON.parse(localStorage.getItem(dismissedKey()) || "[]"); } catch {}
+  const icons = { info: "ℹ️", aviso: "⚠️", urgente: "🚨" };
+  $("#broadcastArea").innerHTML = list.filter(b => !dismissed.includes(b.id)).map(b => `
+    <div class="bc-msg ${escapeHTML(b.level)}"><span class="bc-icon">${icons[b.level] || "ℹ️"}</span>
+      <div><b>${escapeHTML(b.title)}</b><p>${escapeHTML(b.body)}</p></div>
+      <button type="button" data-dismiss-bc="${Number(b.id)}" aria-label="Fechar mensagem">×</button></div>`).join("");
+  $$("[data-dismiss-bc]").forEach(btn => btn.addEventListener("click", () => {
+    dismissed.push(Number(btn.dataset.dismissBc));
+    localStorage.setItem(dismissedKey(), JSON.stringify(dismissed.slice(-50)));
+    btn.closest(".bc-msg").remove();
+  }));
+}
+
+// ---------- Sinal de "caixa ligado" ----------
+let heartbeatTimer = null;
+async function heartbeat() {
+  if (!currentCompany) return;
+  if (!getToken()) { setConnection(false); return; }
+  const r = await api("heartbeat", { body: { cashierOpen: true } });
+  if (!currentCompany) return;
+  if (r.ok) {
+    setConnection(true);
+    const before = JSON.stringify(currentCompany.server || {});
+    applyServerStore(currentCompany, r.data.store);
+    if (JSON.stringify(currentCompany.server) !== before) persist().catch(console.error);
+    renderPlanStatus(); renderTrialBanner(); renderBlocked(); renderBroadcasts(r.data.broadcasts);
+  } else if (r.status === 401) {
+    clearToken();
+    toast("Sua sessão foi encerrada. Entre novamente.");
+    exitApp();
+  } else {
+    setConnection(false);
+  }
+}
+function startHeartbeat() {
+  stopHeartbeat();
+  heartbeat();
+  heartbeatTimer = setInterval(heartbeat, 30000);
+}
+function stopHeartbeat() { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+function sendCashierClosed() {
+  const token = getToken();
+  if (!token || !currentCompany) return;
+  const blob = new Blob([JSON.stringify({ token, cashierOpen: false })], { type: "application/json" });
+  navigator.sendBeacon?.("/api/heartbeat", blob);
+}
+window.addEventListener("pagehide", sendCashierClosed);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && currentCompany) heartbeat(); });
+window.addEventListener("online", () => { if (currentCompany) heartbeat(); });
+
+// ---------- Troca de senha obrigatória ----------
+function openPasswordModal() {
+  $("#passwordForm").reset();
+  $("#passwordFormError").textContent = "";
+  $("#passwordModal").classList.remove("hidden");
+  setTimeout(() => $("#newPass1").focus(), 30);
+}
+$("#passwordForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const p1 = $("#newPass1").value, p2 = $("#newPass2").value, err = $("#passwordFormError");
+  if (p1.length < 4) { err.textContent = "A senha precisa ter pelo menos 4 caracteres."; return; }
+  if (p1 !== p2) { err.textContent = "As senhas não são iguais."; return; }
+  const r = await api("auth/password", { body: { newPassword: p1 } });
+  if (!r.ok) { err.textContent = r.status === 0 ? "Sem conexão. Tente de novo." : "Não foi possível salvar a senha."; return; }
+  currentCompany.passwordHash = await hashDemoPassword(p1);
+  if (currentCompany.server) currentCompany.server.mustChangePassword = false;
+  await persist();
+  $("#passwordModal").classList.add("hidden");
+  toast("Nova senha salva.");
+  focusScanner();
+});
+
+// ---------- App instalável (PWA) ----------
+let deferredInstall = null;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  $("#installAppBtn").classList.remove("hidden");
+});
+if (isIOS && !isStandalone()) $("#installAppBtn").classList.remove("hidden");
+$("#installAppBtn").addEventListener("click", async () => {
+  if (deferredInstall) {
+    deferredInstall.prompt();
+    await deferredInstall.userChoice.catch(() => null);
+    deferredInstall = null;
+    $("#installAppBtn").classList.add("hidden");
+  } else if (isIOS) {
+    toast("No iPhone: toque em Compartilhar e depois em “Adicionar à Tela de Início”.");
+  }
+});
+window.addEventListener("appinstalled", () => { $("#installAppBtn").classList.add("hidden"); toast("App instalado! Procure o ícone na tela inicial."); });
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(console.warn));
+}
+
+// ---------- Planos (página inicial) ----------
+$$(".plan-btn").forEach(b => b.addEventListener("click", () => showModal("register")));
+
+// ==========================================================================
+// Área Master
+// ==========================================================================
+const MASTER_KEY = "nexus_master_token";
+let masterToken = sessionStorage.getItem(MASTER_KEY) || "";
+let masterSetupMode = false, masterData = null, masterFilter = "todos", masterTimer = null;
+const tempPasswords = {};
+const PERIOD_LABELS = { 15: "15 dias", 30: "30 dias", 90: "3 meses", 180: "6 meses", 365: "1 ano" };
+
+$("#masterDot").addEventListener("click", async () => {
+  if (masterToken && await loadMaster()) { openMasterView(); return; }
+  openMasterLogin();
+});
+async function openMasterLogin() {
+  $("#masterLoginForm").reset();
+  $("#masterLoginError").textContent = "";
+  $("#masterLoginModal").classList.remove("hidden");
+  const r = await api("master/status", { method: "GET", token: "" });
+  if (serverUnavailable(r)) { $("#masterLoginError").textContent = "Servidor indisponível no momento."; }
+  masterSetupMode = r.ok && r.data && !r.data.configured;
+  $("#masterSetupFields").classList.toggle("hidden", !masterSetupMode);
+  $("#masterConfirmWrap").classList.toggle("hidden", !masterSetupMode);
+  $("#masterLoginDesc").textContent = masterSetupMode
+    ? "Primeiro acesso: informe o código de configuração e crie a sua senha master (mínimo 8 caracteres)."
+    : "Digite a senha master.";
+  $("#masterLoginSubmit").textContent = masterSetupMode ? "Criar senha e entrar →" : "Entrar →";
+  $("#masterPass").setAttribute("autocomplete", masterSetupMode ? "new-password" : "current-password");
+  setTimeout(() => (masterSetupMode ? $("#masterSetupCode") : $("#masterPass")).focus(), 30);
+}
+const closeMasterLogin = () => $("#masterLoginModal").classList.add("hidden");
+$$("[data-close-master-login]").forEach(b => b.addEventListener("click", closeMasterLogin));
+$("#masterLoginModal").addEventListener("click", (e) => { if (e.target.id === "masterLoginModal") closeMasterLogin(); });
+$("#masterLoginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = $("#masterLoginError");
+  err.textContent = "";
+  const password = $("#masterPass").value;
+  let r;
+  if (masterSetupMode) {
+    if (password.length < 8) { err.textContent = "A senha master precisa ter pelo menos 8 caracteres."; return; }
+    if (password !== $("#masterPass2").value) { err.textContent = "As senhas não são iguais."; return; }
+    r = await api("master/setup", { body: { code: $("#masterSetupCode").value.trim().toUpperCase(), password }, token: "" });
+  } else {
+    r = await api("master/login", { body: { password }, token: "" });
+  }
+  if (!r.ok) {
+    const map = { invalid_credentials: "Senha incorreta.", invalid_setup_code: "Código de primeiro acesso inválido.", too_many_attempts: "Muitas tentativas. Aguarde 15 minutos.", already_configured: "A senha master já foi criada. Recarregue a página." };
+    err.textContent = map[r.data?.error] || "Não foi possível entrar.";
+    return;
+  }
+  masterToken = r.data.token;
+  sessionStorage.setItem(MASTER_KEY, masterToken);
+  closeMasterLogin();
+  if (await loadMaster()) openMasterView();
+});
+
+function openMasterView() {
+  $("#masterView").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  clearInterval(masterTimer);
+  masterTimer = setInterval(loadMaster, 20000);
+}
+function closeMasterView() {
+  $("#masterView").classList.add("hidden");
+  document.body.style.overflow = "";
+  clearInterval(masterTimer);
+  focusScanner();
+}
+$("#masterClose").addEventListener("click", closeMasterView);
+$("#masterRefresh").addEventListener("click", () => loadMaster().then(ok => ok && toast("Painel atualizado.")));
+$("#masterLogout").addEventListener("click", async () => {
+  await api("master/logout", { token: masterToken });
+  masterToken = ""; sessionStorage.removeItem(MASTER_KEY);
+  closeMasterView();
+  toast("Você saiu da Área Master.");
+});
+
+async function masterApi(path, opts = {}) {
+  const r = await api(path, { ...opts, token: masterToken });
+  if (r.status === 401) {
+    masterToken = ""; sessionStorage.removeItem(MASTER_KEY);
+    closeMasterView();
+    toast("Sessão master expirada. Entre de novo.");
+  }
+  return r;
+}
+async function loadMaster() {
+  const r = await masterApi("master/overview", { method: "GET" });
+  if (!r.ok) { if (r.status !== 401 && !$("#masterView").classList.contains("hidden")) toast("Não foi possível atualizar o painel."); return false; }
+  masterData = r.data;
+  renderMaster();
+  return true;
+}
+function renderMaster() {
+  const d = masterData;
+  if (!d) return;
+  $("#masterUpdated").textContent = `Atualizado às ${new Intl.DateTimeFormat("pt-BR", { timeStyle: "medium" }).format(d.serverTime)} · atualiza sozinho a cada 20 s`;
+  $("#kpiTotal").textContent = d.kpis.total;
+  $("#kpiOnline").textContent = d.kpis.online;
+  $("#kpiTeste").textContent = d.kpis.teste;
+  $("#kpiAtivo").textContent = d.kpis.ativo;
+  $("#kpiPendente").textContent = d.kpis.pendente;
+  $("#kpiDesativado").textContent = d.kpis.desativado;
+  // mensagens
+  $("#bcList").innerHTML = d.broadcasts.length ? d.broadcasts.map(b => `
+    <div class="bc-item ${escapeHTML(b.level)}"><button type="button" data-remove-bc="${Number(b.id)}">Remover</button>
+      <b>${escapeHTML(b.title)}</b><p>${escapeHTML(b.body)}</p><small>Enviada em ${fmtDateTimeShort(b.createdAt)}</small></div>`).join("")
+    : '<p class="muted-text">Nenhuma mensagem ativa.</p>';
+  $$("[data-remove-bc]").forEach(btn => btn.addEventListener("click", async () => {
+    const r = await masterApi(`master/broadcasts/${btn.dataset.removeBc}`, { method: "DELETE" });
+    if (r.ok) { toast("Mensagem removida."); loadMaster(); }
+  }));
+  renderMasterStores();
+}
+function storeMatches(s) {
+  const term = $("#masterSearch").value.trim().toLowerCase();
+  if (term && !`${s.storeName} ${s.email}`.toLowerCase().includes(term)) return false;
+  if (masterFilter === "todos") return true;
+  if (masterFilter === "online") return s.online;
+  return s.status.code === masterFilter;
+}
+function renderMasterStores() {
+  const d = masterData;
+  const list = d.stores.filter(storeMatches);
+  const planOptions = Object.entries(d.plans).map(([k, p]) => `<option value="${k}">${escapeHTML(p.name)}</option>`).join("");
+  const periodOptions = d.periods.map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${PERIOD_LABELS[n] || n + " dias"}</option>`).join("");
+  $("#masterStores").innerHTML = list.length ? list.map(s => {
+    const seen = s.lastSeenAt ? `visto ${fmtDateTimeShort(s.lastSeenAt)}` : "nunca abriu o caixa";
+    const validity = s.plan && s.planExpiresAt
+      ? `Plano ${escapeHTML(s.planName || s.plan)} até <b>${fmtDate(s.planExpiresAt)}</b>`
+      : `Teste até <b>${fmtDate(s.trialEndsAt)}</b>`;
+    const temp = tempPasswords[s.id];
+    return `<div class="store-card ${s.status.color}">
+      <div>
+        <div class="store-head"><b>${escapeHTML(s.storeName)}</b>
+          <span class="status-pill ${s.status.color}">${escapeHTML(s.status.label)}</span>
+          <span class="online-tag ${s.online ? "on" : ""}"><i class="dot ${s.online ? "green pulse-dot" : "gray"}"></i>${s.online ? "Caixa ligado" : "Offline"}</span>
+        </div>
+        <div class="store-meta">${escapeHTML(s.email)}<br>Cadastro em ${fmtDate(s.createdAt)} · ${validity}<br>${s.online ? "Usando agora" : seen}</div>
+      </div>
+      <div class="store-actions">
+        <div class="row"><select data-plan-for="${s.id}" aria-label="Plano">${planOptions}</select><select data-period-for="${s.id}" aria-label="Período">${periodOptions}</select></div>
+        <button class="btn btn-primary" type="button" data-activate="${s.id}">✓ Ativar pacote</button>
+        <div class="row">
+          <button class="btn btn-secondary" type="button" data-reset="${s.id}">🔑 Redefinir senha</button>
+          ${s.blocked
+            ? `<button class="btn btn-ok" type="button" data-block="${s.id}" data-blocked="0">Reativar</button>`
+            : `<button class="btn btn-danger" type="button" data-block="${s.id}" data-blocked="1">Desativar</button>`}
+        </div>
+      </div>
+      ${temp ? `<div class="temp-pass">Senha provisória de <b>${escapeHTML(s.storeName)}</b>: <code>${escapeHTML(temp)}</code> <button class="btn btn-secondary" type="button" data-copy-temp="${s.id}">Copiar</button><small>O cliente cria uma senha nova no próximo login.</small></div>` : ""}
+    </div>`;
+  }).join("") : '<p class="empty-list">Nenhuma loja encontrada.</p>';
+
+  // mantém o plano atual selecionado
+  list.forEach(s => { if (s.plan) { const sel = $(`[data-plan-for="${s.id}"]`); if (sel) sel.value = s.plan; } });
+  $$("[data-activate]").forEach(btn => btn.addEventListener("click", async () => {
+    const id = btn.dataset.activate;
+    const plan = $(`[data-plan-for="${id}"]`).value, days = Number($(`[data-period-for="${id}"]`).value);
+    const store = masterData.stores.find(s => s.id === id);
+    if (!confirm(`Ativar ${masterData.plans[plan].name} por ${PERIOD_LABELS[days]} para "${store.storeName}"?`)) return;
+    const r = await masterApi(`master/stores/${id}/plan`, { body: { plan, days } });
+    if (r.ok) { toast(`Pacote ativado até ${fmtDate(r.data.store.planExpiresAt)}.`); loadMaster(); }
+    else toast("Não foi possível ativar o pacote.");
+  }));
+  $$("[data-reset]").forEach(btn => btn.addEventListener("click", async () => {
+    const id = btn.dataset.reset;
+    const store = masterData.stores.find(s => s.id === id);
+    if (!confirm(`Redefinir a senha de "${store.storeName}"? A senha atual deixa de funcionar e o caixa dele será desconectado.`)) return;
+    const r = await masterApi(`master/stores/${id}/reset-password`, {});
+    if (r.ok) { tempPasswords[id] = r.data.tempPassword; renderMasterStores(); }
+    else toast("Não foi possível redefinir a senha.");
+  }));
+  $$("[data-copy-temp]").forEach(btn => btn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(tempPasswords[btn.dataset.copyTemp]); toast("Senha copiada."); } catch { toast("Copie a senha manualmente."); }
+  }));
+  $$("[data-block]").forEach(btn => btn.addEventListener("click", async () => {
+    const id = btn.dataset.block, blocked = btn.dataset.blocked === "1";
+    const store = masterData.stores.find(s => s.id === id);
+    if (blocked && !confirm(`Desativar "${store.storeName}"? O PDV dele fica bloqueado até você reativar.`)) return;
+    const r = await masterApi(`master/stores/${id}/block`, { body: { blocked } });
+    if (r.ok) { toast(blocked ? "Loja desativada." : "Loja reativada."); loadMaster(); }
+    else toast("Não foi possível alterar a loja.");
+  }));
+}
+$("#masterSearch").addEventListener("input", () => masterData && renderMasterStores());
+$$("[data-mfilter]").forEach(b => b.addEventListener("click", () => {
+  masterFilter = b.dataset.mfilter;
+  $$("[data-mfilter]").forEach(x => x.classList.toggle("active", x === b));
+  if (masterData) renderMasterStores();
+}));
+$("#broadcastForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = { title: $("#bcTitle").value.trim(), body: $("#bcBody").value.trim(), level: $("#bcLevel").value };
+  if (!body.body) return;
+  const r = await masterApi("master/broadcasts", { body });
+  if (r.ok) { $("#broadcastForm").reset(); toast("Mensagem enviada para todas as lojas."); loadMaster(); }
+  else toast("Não foi possível enviar a mensagem.");
+});
+// [/NEXUS CLOUD]
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!$("#masterLoginModal").classList.contains("hidden")) closeMasterLogin();
+  else if (!$("#masterView").classList.contains("hidden")) closeMasterView();
+});
+
+window.addEventListener("offline", () => { if (currentCompany) { setConnection(false); toast("Você está offline. O caixa continua funcionando neste aparelho."); } });
 loadSession().catch(console.error);

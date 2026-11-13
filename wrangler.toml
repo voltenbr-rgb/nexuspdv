@@ -1,0 +1,10 @@
+# Configuração do Cloudflare Pages para o Nexus PDV.
+# Este arquivo liga o site ao banco D1 "nexuspdv" automaticamente (binding DB).
+name = "nexuspdv"
+pages_build_output_dir = "."
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nexuspdv"
+database_id = "80cfb734-9de6-48e9-9b71-f5d821ae21b0"
