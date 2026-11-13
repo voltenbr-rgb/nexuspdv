@@ -5,7 +5,7 @@ Frente de caixa (PDV) para pequenos negócios, no Cloudflare Pages com banco D1 
 ## Estrutura
 | Arquivo | O que faz |
 |---|---|
-| `index.html`, `styles.css`, `app.js`, `db.js` | Site e app do caixa (funciona offline; os dados do caixa ficam no aparelho, em IndexedDB `nexuspdv`) |
+| `index.html`, `styles.css`, `app.js`, `db.js` | Site e app do caixa (funciona offline e sincroniza com a nuvem) |
 | `functions/api/[[path]].js` | API na Cloudflare: cadastro/login, caixa ligado, mensagens, Área Master e manifesto do app |
 | `schema.sql` | Tabelas do banco D1 (já criadas no `nexuspdv`) |
 | `wrangler.toml` | Liga o projeto ao banco D1 `nexuspdv` (binding `DB`) automaticamente |
@@ -29,7 +29,7 @@ Escolha em Configurações ADM → Aparência, ou nas bolinhas do topo da págin
 - Aviso do teste de 7 dias: mostra quantos dias restam e volta a cada 24 h depois de fechado. No último dia não dá para fechar, e o botão vira **Conhecer os planos**. O pedido de plano aparece na Área Master (filtro "Pedidos de plano").
 
 ## Área Master
-Botão redondo pequeno no rodapé, à direita.
+Pontinho colorido no rodapé, à direita do texto "Simples para começar. Pronto para crescer."
 - Primeiro acesso: código de configuração (de uso único) + criação da senha master (mín. 8 caracteres).
 - Quantas lojas estão cadastradas e quantos caixas estão ligados agora (ícone verde).
 - Status por cor: **verde** ativo (pago) · **amarelo** em teste ou pagamento pendente (até 7 dias do vencimento) · **vermelho** desativado ou vencido há mais de 7 dias.
@@ -53,6 +53,31 @@ Básico R$ 39,90 · Completo R$ 99,90 · Premium R$ 189,90 por mês.
 - Limite de tentativas de login (loja e master).
 - Quando a Área Master redefine a senha ou desativa uma loja, as sessões dela caem na hora.
 
+## Sincronização incremental
+O caixa funciona offline e envia **só o que mudou**, sem regravar a base inteira.
+
+**No aparelho (IndexedDB `nexuspdv` v2):** a loja, os produtos e as vendas ficam em tabelas separadas, e cada alteração grava apenas o registro afetado. A fila `outbox` guarda o que ainda falta enviar.
+
+**Envio (`POST /api/sync/push`):** a fila sobe em lotes. Alterações repetidas do mesmo produto viram uma só. Cada lote grava numa única transação no D1 (`db.batch`).
+- Produto criado ou editado: vence a alteração mais recente (`modified_at`). O estoque tem marca de tempo própria.
+- Produto excluído: fica marcado como excluído, para os outros aparelhos também removerem.
+- Venda nova: o servidor dá baixa no estoque uma única vez (`stock_applied`), mesmo que o envio se repita. Duas vendas ao mesmo tempo em aparelhos diferentes descontam as duas.
+- Configurações (impressora, favoritos, senha de autorização).
+
+**Recebimento (`GET /api/sync/pull`):** baixa só as linhas novas desde o último cursor (`updated_at` + `id`). Num aparelho novo, vêm os produtos e as vendas dos últimos 30 dias.
+
+**Quando sincroniza:** 1,5 s depois de cada alteração, a cada 30 s e quando a internet volta. O status aparece na barra lateral ("Sincronizado às…" / "N alterações para enviar").
+
+**Índices no D1 (conferidos com `EXPLAIN QUERY PLAN`, todos com SEARCH USING INDEX e sem ordenação extra):**
+| Índice | Consulta |
+|---|---|
+| `idx_products_sync (store_id, updated_at, id)` | baixar produtos alterados |
+| `idx_sales_sync (store_id, updated_at, id)` | baixar vendas novas |
+| `idx_settings_sync (store_id, updated_at, key)` | baixar configurações |
+| `idx_products_code (store_id, code)` | busca por código de barras |
+| `idx_sales_created (store_id, created_at)` | relatórios por período |
+| `idx_stores_created (created_at)` | lista da Área Master |
+
 ## Próximos passos
-- Sincronizar produtos e vendas com o D1 (hoje ficam no aparelho).
 - Pix com Mercado Pago (token guardado como segredo no servidor).
+- Numeração de vendas única entre vários caixas da mesma loja.

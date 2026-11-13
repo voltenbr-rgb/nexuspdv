@@ -245,6 +245,142 @@ route("POST", /^plan-request$/, async ({ db, request, body }) => {
   return json({ ok: true });
 });
 
+// =====================================================================
+// Sincronização incremental: o caixa envia só o que mudou (push)
+// e baixa só o que é novo desde o último cursor (pull).
+// =====================================================================
+const SYNC_PUSH_MAX = 200;      // alterações por envio
+const SYNC_PULL_LIMIT = 300;    // linhas por tabela por pedido
+const SYNC_SETTINGS = ["hardware", "favorites", "security"];
+const INITIAL_SALES_DAYS = 30;  // primeira sincronização num aparelho novo: vendas dos últimos 30 dias
+
+const num = (v, def = 0) => (Number.isFinite(Number(v)) ? Number(v) : def);
+const int = (v, def = 0) => (Number.isInteger(Number(v)) ? Number(v) : def);
+const validId = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(v);
+
+function productStatement(db, storeId, c, now) {
+  const d = c.d || {};
+  const name = cleanText(d.name, 80);
+  if (!name) fail(400, "invalid_product");
+  const price = num(d.price, NaN);
+  if (!Number.isFinite(price) || price < 0 || price > 1e7) fail(400, "invalid_product");
+  const hasStock = c.s !== undefined && c.s !== null;
+  const stock = hasStock ? int(c.s, NaN) : 0;
+  if (hasStock && (!Number.isInteger(stock) || Math.abs(stock) > 1e9)) fail(400, "invalid_product");
+  const m = int(c.m, 0);
+  // Vence a alteração mais recente (modified_at). Estoque tem marca de tempo própria,
+  // porque as vendas baixam o estoque no servidor sem "editar" o produto.
+  return db.prepare(`INSERT INTO products (store_id, id, name, category, code, price, emoji, stock, deleted, modified_at, stock_modified_at, updated_at)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10, ?11)
+    ON CONFLICT(store_id, id) DO UPDATE SET
+      name     = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.name     ELSE products.name END,
+      category = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.category ELSE products.category END,
+      code     = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.code     ELSE products.code END,
+      price    = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.price    ELSE products.price END,
+      emoji    = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.emoji    ELSE products.emoji END,
+      deleted  = CASE WHEN excluded.modified_at > products.modified_at THEN 0                 ELSE products.deleted END,
+      stock    = CASE WHEN excluded.stock_modified_at > products.stock_modified_at THEN excluded.stock ELSE products.stock END,
+      modified_at       = MAX(products.modified_at, excluded.modified_at),
+      stock_modified_at = MAX(products.stock_modified_at, excluded.stock_modified_at),
+      updated_at = excluded.updated_at`)
+    .bind(storeId, c.id, name, cleanText(d.category, 40), cleanText(d.code, 64), price, cleanText(d.emoji, 8),
+      stock, m, hasStock ? m : 0, now);
+}
+
+function saleStatements(db, storeId, c, now) {
+  const s = c.d || {};
+  if (!validId(s.id)) fail(400, "invalid_sale");
+  const items = Array.isArray(s.items) ? s.items.slice(0, 300).map(it => ({
+    productId: validId(it.productId) ? it.productId : null,
+    name: cleanText(it.name, 80), price: num(it.price), qty: int(it.qty, 0)
+  })).filter(it => it.qty > 0 && it.qty <= 100000) : [];
+  if (!items.length) fail(400, "invalid_sale");
+  const applyStock = c.a !== false;
+  const stmts = [db.prepare(`INSERT INTO sales (store_id, id, number, created_at, subtotal, discount, total, payment, received, change_value, items, stock_applied, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(store_id, id) DO NOTHING`)
+    .bind(storeId, s.id, int(s.number, null), int(s.createdAt, now), num(s.subtotal ?? s.total), num(s.discount), num(s.total),
+      cleanText(s.payment, 30), num(s.received ?? s.total), num(s.change), JSON.stringify(items), applyStock ? 0 : 1, now)];
+  // Baixa de estoque só uma vez por venda (stock_applied), tudo na mesma transação.
+  const perProduct = {};
+  items.forEach(it => { if (it.productId) perProduct[it.productId] = (perProduct[it.productId] || 0) + it.qty; });
+  Object.entries(perProduct).forEach(([pid, qty]) => stmts.push(
+    db.prepare(`UPDATE products SET stock = stock - ?, updated_at = ? WHERE store_id = ? AND id = ?
+      AND EXISTS (SELECT 1 FROM sales WHERE store_id = ? AND id = ? AND stock_applied = 0)`)
+      .bind(qty, now, storeId, pid, storeId, s.id)));
+  stmts.push(db.prepare("UPDATE sales SET stock_applied = 1 WHERE store_id = ? AND id = ? AND stock_applied = 0").bind(storeId, s.id));
+  return stmts;
+}
+
+route("POST", /^sync\/push$/, async ({ db, request, body }) => {
+  const { store } = await requireStore(db, request, body);
+  if (storeStatus(store).code === "desativado") fail(403, "store_blocked");
+  const changes = Array.isArray(body.changes) ? body.changes : [];
+  if (changes.length > SYNC_PUSH_MAX) fail(413, "too_many_changes");
+  const now = Date.now();
+  const stmts = [];
+  for (const c of changes) {
+    if (c?.t === "p") {
+      if (!validId(c.id)) fail(400, "invalid_product");
+      if (c.op === "d") {
+        stmts.push(db.prepare(`INSERT INTO products (store_id, id, name, deleted, modified_at, updated_at) VALUES (?1, ?2, '', 1, ?3, ?4)
+          ON CONFLICT(store_id, id) DO UPDATE SET
+            deleted = CASE WHEN excluded.modified_at >= products.modified_at THEN 1 ELSE products.deleted END,
+            modified_at = MAX(products.modified_at, excluded.modified_at), updated_at = excluded.updated_at`)
+          .bind(store.id, c.id, int(c.m, now), now));
+      } else {
+        stmts.push(productStatement(db, store.id, c, now));
+      }
+    } else if (c?.t === "s") {
+      stmts.push(...saleStatements(db, store.id, c, now));
+    } else if (c?.t === "c") {
+      if (!SYNC_SETTINGS.includes(c.k)) fail(400, "invalid_setting");
+      const value = JSON.stringify(c.v ?? null);
+      if (value.length > 8000) fail(413, "setting_too_large");
+      stmts.push(db.prepare(`INSERT INTO store_settings (store_id, key, value, modified_at, updated_at) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(store_id, key) DO UPDATE SET
+          value = CASE WHEN excluded.modified_at > store_settings.modified_at THEN excluded.value ELSE store_settings.value END,
+          modified_at = MAX(store_settings.modified_at, excluded.modified_at), updated_at = excluded.updated_at`)
+        .bind(store.id, c.k, value, int(c.m, now), now));
+    } else {
+      fail(400, "invalid_change");
+    }
+  }
+  // db.batch = uma transação: ou grava tudo, ou nada.
+  if (stmts.length) await db.batch(stmts);
+  return json({ ok: true, applied: changes.length, serverTime: now });
+});
+
+route("GET", /^sync\/pull$/, async ({ db, request, body, url }) => {
+  const { store } = await requireStore(db, request, body);
+  const q = url.searchParams;
+  const cur = (k) => ({ t: int(q.get(k + "t"), 0), i: String(q.get(k + "i") || "").slice(0, 64) });
+  const pc = cur("p"), sc = cur("s"), cc = cur("c");
+  const now = Date.now();
+  const L = SYNC_PULL_LIMIT + 1;
+  // updated_at >= cursor + desempate pelo id: não perde linhas gravadas no mesmo milissegundo
+  const [products, sales, settings] = await db.batch([
+    db.prepare(`SELECT id, name, category, code, price, emoji, stock, deleted, updated_at FROM products
+      WHERE store_id = ?1 AND updated_at >= ?2 AND (updated_at > ?2 OR id > ?3) ORDER BY updated_at, id LIMIT ?4`).bind(store.id, pc.t, pc.i, L),
+    db.prepare(`SELECT id, number, created_at, subtotal, discount, total, payment, received, change_value, items, updated_at FROM sales
+      WHERE store_id = ?1 AND updated_at >= ?2 AND (updated_at > ?2 OR id > ?3) AND created_at >= ?4 ORDER BY updated_at, id LIMIT ?5`)
+      .bind(store.id, sc.t, sc.i, sc.t === 0 ? now - INITIAL_SALES_DAYS * DAY : 0, L),
+    db.prepare(`SELECT key, value, updated_at FROM store_settings
+      WHERE store_id = ?1 AND updated_at >= ?2 AND (updated_at > ?2 OR key > ?3) ORDER BY updated_at, key LIMIT ?4`).bind(store.id, cc.t, cc.i, L)
+  ]);
+  const page = (rows) => rows.results.slice(0, SYNC_PULL_LIMIT);
+  const P = page(products), S = page(sales), C = page(settings);
+  const last = (rows, key, prev) => rows.length ? { t: rows.at(-1).updated_at, i: rows.at(-1)[key] } : prev;
+  return json({
+    products: P.map(r => ({ id: r.id, name: r.name, category: r.category, code: r.code, price: r.price, emoji: r.emoji, stock: r.stock, deleted: Boolean(r.deleted) })),
+    sales: S.map(r => ({ id: r.id, number: r.number, createdAt: r.created_at, subtotal: r.subtotal, discount: r.discount, total: r.total,
+      payment: r.payment, received: r.received, change: r.change_value, items: JSON.parse(r.items || "[]") })),
+    settings: C.map(r => ({ key: r.key, value: JSON.parse(r.value) })),
+    cursors: { p: last(P, "id", pc), s: last(S, "id", sc), c: last(C, "key", cc) },
+    more: products.results.length > SYNC_PULL_LIMIT || sales.results.length > SYNC_PULL_LIMIT || settings.results.length > SYNC_PULL_LIMIT,
+    serverTime: now
+  });
+});
+
 // ----- Área Master -----
 route("GET", /^master\/status$/, async ({ db, env }) => json({ configured: await masterConfigured(env, db) }));
 

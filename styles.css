@@ -376,3 +376,9 @@ body .category-chips .chip.active,body.theme-light .category-chips .chip.active{
 body.theme-light .site-header{background:color-mix(in srgb,var(--bg) 90%,transparent)}
 .master-dot{width:12px;height:12px;opacity:.6}
 @media(max-width:620px){.catalog-head{align-items:stretch}.catalog-head>div{text-align:left}}
+/* [NEXUS SYNC] status da sincronização na barra lateral */
+.sync-status.ok{color:var(--good)}.sync-status.pending{color:#b45309}.sync-status.local{color:var(--muted)}
+body[data-theme=azul] .sync-status.pending{color:#fde68a}
+/* Botão da Área Master: pontinho colorido, pequeno e visível no rodapé */
+.master-dot{width:10px!important;height:10px!important;padding:0!important;border-radius:50%!important;border:2px solid color-mix(in srgb,var(--primary) 35%,transparent)!important;background:var(--primary)!important;opacity:.9!important;box-sizing:content-box;display:inline-block;vertical-align:middle;margin-left:10px;cursor:pointer}
+.master-dot:hover,.master-dot:focus-visible{opacity:1!important;transform:scale(1.35)}

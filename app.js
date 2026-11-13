@@ -1,4 +1,4 @@
-import { getCompany, saveCompany, findCompanyByEmail } from "./db.js";
+import { getCompany, saveCompany, saveCompanyMeta, commitLocal, listOutbox, removeOutbox, countOutbox, findCompanyByEmail } from "./db.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -108,7 +108,8 @@ async function loadSession() {
   const company = await getCompany(id);
   if (company) { currentCompany = company; enterApp(); if (company.server?.mustChangePassword && getToken()) openPasswordModal(); }
 }
-function persist() { return saveCompany(currentCompany); }
+// Grava só os dados da loja. Produtos, vendas e configurações usam gravações pontuais (record*).
+function persist() { return saveCompanyMeta(currentCompany); }
 function enterApp() {
   $("#landingView").classList.add("hidden"); $("#appView").classList.remove("hidden");
   document.body.classList.add("in-app");
@@ -118,6 +119,7 @@ function enterApp() {
   renderProducts(); renderInventory(); updateCart(); renderTrialBanner();
   showPanel("pos");
   startHeartbeat();
+  refreshSyncBadge();
 }
 function exitApp() {
   stopHeartbeat();
@@ -203,7 +205,7 @@ function renderProducts() {
     const set = new Set(currentCompany.favorites || []);
     set.has(b.dataset.fav) ? set.delete(b.dataset.fav) : set.add(b.dataset.fav);
     currentCompany.favorites = [...set];
-    await persist(); renderProducts();
+    await recordSetting("favorites"); renderProducts();
   }));
 }
 function escapeHTML(str) { return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -301,15 +303,17 @@ async function editProduct(id) {
   if (!Number.isFinite(parsed) || parsed < 0) { toast("Informe um preço válido."); return; }
   p.price = parsed;
   const stock = prompt("Quantidade em estoque:", p.stock);
-  if (stock !== null && Number.isInteger(Number(stock)) && Number(stock) >= 0) p.stock = Number(stock);
-  await persist(); renderInventory(); renderProducts(); toast("Produto atualizado.");
+  // campo vazio ou cancelado mantém o estoque atual (antes, vazio zerava o estoque)
+  const stockChanged = stock !== null && stock.trim() !== "" && Number.isInteger(Number(stock)) && Number(stock) >= 0 && Number(stock) !== p.stock;
+  if (stockChanged) p.stock = Number(stock);
+  await recordProduct(p, { stockChanged }); renderInventory(); renderProducts(); toast("Produto atualizado.");
 }
 async function deleteProduct(id) {
   if (!await authorizeSensitiveAction("excluir produto")) return;
   if (!confirm("Deseja realmente excluir este produto?")) return;
   currentCompany.products = currentCompany.products.filter(p => p.id !== id);
   cart = cart.filter(x => x.id !== id);
-  await persist(); renderInventory(); renderProducts(); updateCart(); toast("Produto excluído.");
+  await recordProductDelete(id); renderInventory(); renderProducts(); updateCart(); toast("Produto excluído.");
 }
 $("#addProductBtn").addEventListener("click", () => openProductModal("")); // [NEXUS HW] modal no lugar dos prompts
 
@@ -333,7 +337,7 @@ $("#saveSecurityBtn").addEventListener("click", async () => {
     if (currentCompany.security?.enabled && !await authorizeSensitiveAction("desativar proteção de estoque")) return;
     currentCompany.security = { enabled:false, passwordHash:"" };
   }
-  await persist(); $("#masterPassword").value = ""; $("#masterPasswordConfirm").value = "";
+  await recordSetting("security"); $("#masterPassword").value = ""; $("#masterPasswordConfirm").value = "";
   loadSecuritySettings(); toast("Configuração de segurança salva.");
 });
 
@@ -510,7 +514,7 @@ $("#productForm").addEventListener("submit", async (e) => {
   if (code && currentCompany.products.some(p => String(p.code || "").trim() === code)) { err.textContent = "Já existe um produto com este código."; return; }
   const product = { id: crypto.randomUUID(), name, category: $("#pfCategory").value, code, price, stock, emoji: "📦" };
   currentCompany.products.push(product);
-  try { await persist(); } catch (ex) { console.error(ex); err.textContent = "Não foi possível salvar o produto."; return; }
+  try { await recordProduct(product); } catch (ex) { console.error(ex); err.textContent = "Não foi possível salvar o produto."; return; }
   renderInventory(); renderProducts();
   $("#productModal").classList.add("hidden");
   if (productModalFromScanner) {
@@ -588,7 +592,9 @@ async function finalizeSale() {
     currentCompany.saleSeq = (currentCompany.saleSeq ?? currentCompany.sales.length) + 1;
     const sale = { id: crypto.randomUUID(), number: currentCompany.saleSeq, createdAt: now(), items, subtotal, discount, total, payment, received, change };
     currentCompany.sales.push(sale);
-    await persist();
+    // grava só a venda nova e os produtos que tiveram estoque baixado
+    const touched = [...new Set(items.map(l => l.productId))].map(id => currentCompany.products.find(p => p.id === id)).filter(Boolean);
+    await recordSale(sale, touched);
     cart = []; cartDiscount = { type: "valor", value: 0 }; cartPay = "Dinheiro";
     renderProducts(); renderInventory(); updateCart();
     $("#checkoutModal").classList.add("hidden");
@@ -686,7 +692,7 @@ $$("input[name=hwPaper]").forEach(r => r.addEventListener("change", renderHwPrev
 $("#saveHardwareBtn").addEventListener("click", async () => {
   currentCompany.hardware = readHardwareForm();
   try {
-    await persist();
+    await recordSetting("hardware");
     $("#hardwareStatus").textContent = "Configuração de hardware salva.";
     toast("Configuração de hardware salva.");
   } catch (err) {
@@ -696,6 +702,158 @@ $("#saveHardwareBtn").addEventListener("click", async () => {
 });
 $("#testPrintBtn").addEventListener("click", () => printReceipt(testSale(), readHardwareForm()));
 // [/NEXUS HW]
+
+// ==========================================================================
+// [NEXUS SYNC] Sincronização incremental com a nuvem
+// Cada alteração entra numa fila (outbox) e é enviada sozinha. Do servidor,
+// só baixamos o que mudou desde o último cursor.
+// ==========================================================================
+const productPayload = (p) => ({ name: p.name, category: p.category, code: p.code || "", price: p.price, emoji: p.emoji || "📦" });
+const syncMeta = () => (currentCompany.sync ||= { baselineDone: false, cursors: {} });
+
+// Gravações pontuais (aparelho + fila para a nuvem)
+async function recordProduct(p, { stockChanged = true } = {}) {
+  const m = Date.now();
+  await commitLocal(currentCompany.empresa_id, {
+    products: [p],
+    outbox: [{ t: "p", op: "u", id: p.id, m, d: productPayload(p), ...(stockChanged ? { s: p.stock } : {}) }]
+  });
+  scheduleSync();
+}
+async function recordProductDelete(id) {
+  await commitLocal(currentCompany.empresa_id, { deleteProductIds: [id], outbox: [{ t: "p", op: "d", id, m: Date.now() }] });
+  scheduleSync();
+}
+async function recordSale(sale, changedProducts) {
+  await commitLocal(currentCompany.empresa_id, {
+    meta: currentCompany, sales: [sale], products: changedProducts,
+    outbox: [{ t: "s", d: sale, a: true }]   // a: true → o servidor dá baixa no estoque
+  });
+  scheduleSync();
+}
+async function recordSetting(key) {
+  await commitLocal(currentCompany.empresa_id, { meta: currentCompany, outbox: [{ t: "c", k: key, v: currentCompany[key] ?? null, m: Date.now() }] });
+  scheduleSync();
+}
+
+// Primeira vez com a nuvem: envia o que já existe no aparelho (uma única vez).
+// Com marca de tempo 1, nunca sobrescreve o que outro aparelho já enviou.
+async function ensureBaseline() {
+  const sync = syncMeta();
+  if (sync.baselineDone) return;
+  const outbox = [
+    ...currentCompany.products.map(p => ({ t: "p", op: "u", id: p.id, m: 1, d: productPayload(p), s: p.stock })),
+    ...currentCompany.sales.map(s => ({ t: "s", d: s, a: false })),   // estoque já está descontado no aparelho
+    ...["hardware", "favorites", "security"].filter(k => currentCompany[k] !== undefined).map(k => ({ t: "c", k, v: currentCompany[k], m: 1 }))
+  ];
+  sync.baselineDone = true;
+  await commitLocal(currentCompany.empresa_id, { meta: currentCompany, outbox });
+}
+
+// Junta alterações repetidas do mesmo produto/configuração (vale a última)
+function coalesce(entries) {
+  const out = [], lastIndex = new Map();
+  for (const e of entries) {
+    const c = e.change;
+    const key = c.t === "p" ? `p:${c.id}` : c.t === "c" ? `c:${c.k}` : null;
+    if (key && lastIndex.has(key)) {
+      const prev = out[lastIndex.get(key)];
+      // mantém a mudança de estoque explícita se a anterior tinha e a nova não
+      out[lastIndex.get(key)] = (c.t === "p" && c.op === "u" && prev.op === "u" && c.s === undefined && prev.s !== undefined) ? { ...c, s: prev.s } : c;
+    } else {
+      if (key) lastIndex.set(key, out.length);
+      out.push(c);
+    }
+  }
+  return out;
+}
+
+let syncing = false, syncTimer = null, syncState = { pending: 0, lastOk: 0, error: false };
+function scheduleSync(delay = 1500) {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncNow().catch(console.error), delay);
+  refreshSyncBadge();
+}
+async function refreshSyncBadge() {
+  if (!currentCompany) return;
+  syncState.pending = await countOutbox(currentCompany.empresa_id).catch(() => 0);
+  const el = $("#syncStatus");
+  if (!el) return;
+  if (!getToken()) { el.textContent = "Somente neste aparelho"; el.className = "sync-status local"; return; }
+  if (syncState.pending) { el.textContent = `${syncState.pending} ${syncState.pending === 1 ? "alteração" : "alterações"} para enviar`; el.className = "sync-status pending"; }
+  else if (syncState.error) { el.textContent = "Sincronização pausada"; el.className = "sync-status pending"; }
+  else { el.textContent = syncState.lastOk ? `Sincronizado às ${new Intl.DateTimeFormat("pt-BR", { timeStyle: "short" }).format(syncState.lastOk)}` : "Sincronizando..."; el.className = "sync-status ok"; }
+}
+
+async function syncNow() {
+  if (syncing || !currentCompany || !getToken() || !navigator.onLine) { refreshSyncBadge(); return; }
+  const storeId = currentCompany.empresa_id;
+  syncing = true;
+  try {
+    await ensureBaseline();
+    // 1) Envia a fila em lotes
+    for (let round = 0; round < 20; round++) {
+      const batch = await listOutbox(storeId, 150);
+      if (!batch.length) break;
+      const r = await api("sync/push", { body: { changes: coalesce(batch) } });
+      if (!r.ok) { syncState.error = true; if (r.status === 401) heartbeat(); return; }
+      await removeOutbox(batch.map(b => b.seq));
+    }
+    // 2) Baixa só as novidades (só depois de enviar, para não desfazer alterações locais)
+    let changed = false;
+    for (let round = 0; round < 30; round++) {
+      const c = syncMeta().cursors || {};
+      const qs = new URLSearchParams({ pt: c.p?.t || 0, pi: c.p?.i || "", st: c.s?.t || 0, si: c.s?.i || "", ct: c.c?.t || 0, ci: c.c?.i || "" });
+      const r = await api(`sync/pull?${qs}`, { method: "GET" });
+      if (!r.ok || !currentCompany || currentCompany.empresa_id !== storeId) { syncState.error = true; return; }
+      changed = (await applyPull(r.data)) || changed;
+      if (!r.data.more) break;
+    }
+    syncState.error = false;
+    syncState.lastOk = Date.now();
+    if (changed) { renderProducts(); renderInventory(); updateCart(); }
+  } finally {
+    syncing = false;
+    refreshSyncBadge();
+  }
+}
+
+async function applyPull(data) {
+  const storeId = currentCompany.empresa_id;
+  // Não sobrescreve o que ainda está na fila para enviar
+  const pending = await listOutbox(storeId, 5000);
+  const pendingProducts = new Set(pending.filter(e => e.change.t === "p").map(e => e.change.id));
+  const pendingSettings = new Set(pending.filter(e => e.change.t === "c").map(e => e.change.k));
+  const putProducts = [], delIds = [], newSales = [];
+  let changed = false;
+  for (const p of data.products) {
+    if (pendingProducts.has(p.id)) continue;
+    const i = currentCompany.products.findIndex(x => x.id === p.id);
+    if (p.deleted) {
+      if (i >= 0) { currentCompany.products.splice(i, 1); delIds.push(p.id); cart = cart.filter(x => x.id !== p.id); changed = true; }
+      continue;
+    }
+    const next = { id: p.id, name: p.name, category: p.category || "Mercearia", code: p.code || "", price: Number(p.price), stock: Number(p.stock), emoji: p.emoji || "📦" };
+    if (i >= 0) currentCompany.products[i] = { ...currentCompany.products[i], ...next }; else currentCompany.products.push(next);
+    putProducts.push(next); changed = true;
+  }
+  const known = new Set(currentCompany.sales.map(s => s.id));
+  for (const s of data.sales) {
+    if (known.has(s.id)) continue;
+    newSales.push(s); currentCompany.sales.push(s);
+    currentCompany.saleSeq = Math.max(currentCompany.saleSeq || 0, Number(s.number) || 0);
+  }
+  if (newSales.length) currentCompany.sales.sort((a, b) => a.createdAt - b.createdAt);
+  for (const st of data.settings) {
+    if (pendingSettings.has(st.key) || !["hardware", "favorites", "security"].includes(st.key)) continue;
+    currentCompany[st.key] = st.value; changed = true;
+  }
+  syncMeta().cursors = data.cursors;
+  await commitLocal(storeId, { meta: currentCompany, products: putProducts, deleteProductIds: delIds, sales: newSales });
+  return changed || newSales.length > 0;
+}
+window.addEventListener("online", () => scheduleSync(500));
+// [/NEXUS SYNC]
 
 // ==========================================================================
 // [NEXUS CLOUD] Nuvem (Cloudflare D1), app instalável (PWA) e Área Master
@@ -755,9 +913,14 @@ function applyServerStore(company, srv) {
   };
   company.trialEndsAt = srv.trialEndsAt;
 }
-async function upsertLocalCompany(srv, passwordHash) {
+async function upsertLocalCompany(srv, passwordHash, { isNewStore = false } = {}) {
   let company = await getCompany(srv.id);
-  company ||= newLocalCompany({ empresa_id: srv.id, storeName: srv.storeName, email: srv.email, passwordHash });
+  // Loja aberta pela primeira vez neste aparelho: começa vazia e baixa tudo da nuvem
+  // Loja nova: produtos de exemplo, enviados à nuvem na primeira sincronização.
+  // Loja existente aberta pela primeira vez neste aparelho: começa vazia e baixa tudo da nuvem.
+  company ||= isNewStore
+    ? newLocalCompany({ empresa_id: srv.id, storeName: srv.storeName, email: srv.email, passwordHash })
+    : { ...newLocalCompany({ empresa_id: srv.id, storeName: srv.storeName, email: srv.email, passwordHash }), products: [], sync: { baselineDone: true, cursors: {} } };
   company.storeName = srv.storeName;
   company.email = srv.email;
   company.passwordHash = passwordHash; // permite entrar sem internet neste aparelho
@@ -772,7 +935,7 @@ async function registerFlow({ storeName, email, password, passwordHash }) {
   const r = await api("auth/register", { body: { storeName, email, password, empresaId: empresa_id }, token: "" });
   if (r.ok) {
     setToken(r.data.token);
-    return { company: await upsertLocalCompany(r.data.store, passwordHash) };
+    return { company: await upsertLocalCompany(r.data.store, passwordHash, { isNewStore: true }) };
   }
   if (!serverUnavailable(r)) return { error: AUTH_ERRORS[r.data?.error] || "Não foi possível criar a conta." };
   // Sem servidor: cria a loja só neste aparelho. Ela sobe para a nuvem no próximo login com internet.
@@ -885,6 +1048,7 @@ async function heartbeat() {
     applyServerStore(currentCompany, r.data.store);
     if (JSON.stringify(currentCompany.server) !== before) persist().catch(console.error);
     renderPlanStatus(); renderTrialBanner(); renderBlocked(); renderBroadcasts(r.data.broadcasts);
+    syncNow().catch(console.error); // [NEXUS SYNC] envia a fila e baixa novidades
   } else if (r.status === 401) {
     clearToken();
     toast("Sua sessão foi encerrada. Entre novamente.");
@@ -898,7 +1062,7 @@ function startHeartbeat() {
   heartbeat();
   heartbeatTimer = setInterval(heartbeat, 30000);
 }
-function stopHeartbeat() { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+function stopHeartbeat() { clearInterval(heartbeatTimer); heartbeatTimer = null; clearTimeout(syncTimer); }
 function sendCashierClosed() {
   const token = getToken();
   if (!token || !currentCompany) return;
