@@ -30,7 +30,7 @@ Só o ADM escolhe a aparência da loja (Configurações ADM → Aparência), e e
 - Aviso do teste de 7 dias: mostra quantos dias restam e volta a cada 24 h depois de fechado. No último dia não dá para fechar, e o botão vira **Conhecer os planos**. O pedido de plano aparece na Área Master (filtro "Pedidos de plano").
 
 ## Área Master
-Pontinho colorido no rodapé, à direita do texto "Simples para começar. Pronto para crescer."
+Pontinho colorido no rodapé da **página inicial**, à direita do texto "Simples para começar. Pronto para crescer.". Ele não aparece dentro da loja dos clientes.
 - Primeiro acesso: código de configuração (de uso único) + criação da senha master (mín. 8 caracteres).
 - Quantas lojas estão cadastradas e quantos caixas estão ligados agora (ícone verde).
 - Status por cor: **verde** ativo (pago) · **amarelo** em teste ou pagamento pendente (até 7 dias do vencimento) · **vermelho** desativado ou vencido há mais de 7 dias.

@@ -1394,6 +1394,7 @@ const tempPasswords = {};
 const PERIOD_LABELS = { 15: "15 dias", 30: "30 dias", 90: "3 meses", 180: "6 meses", 365: "1 ano" };
 
 $("#masterDot").addEventListener("click", async () => {
+  if (document.body.classList.contains("in-app")) return; // só na página inicial
   if (masterToken && await loadMaster()) { openMasterView(); return; }
   openMasterLogin();
 });

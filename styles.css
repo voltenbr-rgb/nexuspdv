@@ -501,3 +501,5 @@ body[data-theme=azul] .toast{background:#16233b}
 @media(max-width:1250px){.pos-columns{grid-template-columns:170px minmax(0,1fr)!important;height:calc(100vh - 290px)}.col-cats{max-height:none}.col-products{max-height:none;min-height:0}}
 @media(max-width:620px){.pos-columns{display:flex!important;height:auto}.col-products .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .col-products .col-title{padding-left:4px!important}
+/* Área Master: o pontinho existe só na página inicial, nunca dentro da loja do cliente */
+body.in-app .master-dot{display:none!important}
