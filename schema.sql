@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS products (
   modified_at INTEGER NOT NULL,
   stock_modified_at INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL,
+  cost REAL,                                   -- preço de custo (opcional)
   PRIMARY KEY (store_id, id)
 );
 -- baixar alterações: WHERE store_id = ? AND updated_at >= ? ORDER BY updated_at, id
@@ -109,7 +110,7 @@ CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(store_id, created_at);
 
 CREATE TABLE IF NOT EXISTS store_settings (
   store_id TEXT NOT NULL,
-  key TEXT NOT NULL,                           -- hardware | favorites | security
+  key TEXT NOT NULL,                           -- hardware | favorites | security | appearance
   value TEXT NOT NULL,                         -- JSON
   modified_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,

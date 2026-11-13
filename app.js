@@ -25,27 +25,44 @@ function toast(message) {
 }
 // [NEXUS THEME] tema de caixa: laranja (padrão), amarelo ou escuro
 // verde = padrão (branco com verde e detalhes amarelos); azul = branco com azul
-const THEMES = { verde: "#1f8a65", laranja: "#f97316", amarelo: "#f59e0b", azul: "#1e40af" };
-function setTheme(theme) {
-  if (theme === "dark") theme = "azul";
-  if (!THEMES[theme]) theme = "verde";
+const THEMES = { amarelo: "#f59e0b", verde: "#1f8a65", laranja: "#f97316", azul: "#1e40af" };
+const DEFAULT_THEME = "amarelo";
+// Tema da loja (escolhido pelo ADM e sincronizado) e alternância azul (por aparelho, botão do topo)
+const baseTheme = () => {
+  const t = currentCompany?.appearance || localStorage.getItem("nexus_base_theme") || DEFAULT_THEME;
+  return THEMES[t] ? t : DEFAULT_THEME;
+};
+function applyTheme(theme) {
   document.body.dataset.theme = theme;
-  document.body.classList.add("theme-light"); // todos os temas são claros (o azul mescla branco e azul)
+  document.body.classList.add("theme-light");
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEMES[theme]);
-  localStorage.setItem("nexus_theme_v3", theme);
-  if (theme !== "azul") localStorage.setItem("nexus_light_theme", theme);
-  $$("[data-theme-choice]").forEach(b => b.classList.toggle("active", b.dataset.themeChoice === theme));
+  $$("[data-theme-choice]").forEach(b => b.classList.toggle("active", b.dataset.themeChoice === baseTheme()));
   const toggle = $("#themeToggle");
   if (toggle) {
-    toggle.querySelector(".tt-icon").textContent = theme === "azul" ? "🌿" : "🔵";
+    toggle.querySelector(".tt-icon").textContent = theme === "azul" ? "🎨" : "🔵";
     toggle.querySelector(".tt-label").textContent = theme === "azul" ? "Tema padrão" : "Modo azul";
   }
 }
-$$("[data-theme-choice]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeChoice)));
-setTheme(localStorage.getItem("nexus_theme_v3") || "verde");
+function refreshTheme() {
+  const base = baseTheme();
+  localStorage.setItem("nexus_base_theme", base);
+  const blue = localStorage.getItem("nexus_blue_mode") === "1";
+  applyTheme(blue ? "azul" : (base === "azul" ? DEFAULT_THEME : base));
+}
+refreshTheme();
+// Aparência: só dentro das Configurações ADM (trancadas por senha)
+$$("[data-theme-choice]").forEach(b => b.addEventListener("click", async () => {
+  if (!currentCompany) return;
+  currentCompany.appearance = b.dataset.themeChoice;
+  localStorage.setItem("nexus_blue_mode", b.dataset.themeChoice === "azul" ? "1" : "0");
+  refreshTheme();
+  await recordSetting("appearance");
+  toast("Aparência da loja salva.");
+}));
 $("#themeToggle").addEventListener("click", () => {
-  const current = document.body.dataset.theme;
-  setTheme(current === "azul" ? (localStorage.getItem("nexus_light_theme") || "verde") : "azul");
+  const isBlue = document.body.dataset.theme === "azul";
+  localStorage.setItem("nexus_blue_mode", isBlue ? "0" : "1");
+  refreshTheme();
 });
 
 function showModal(mode) {
@@ -62,10 +79,18 @@ function showModal(mode) {
   $("#switchAuthMode").addEventListener("click", () => showModal(mode === "login" ? "register" : "login"));
 }
 function closeModal() { $("#authModal").classList.add("hidden"); }
+// Clique fora da janela não fecha (para não perder o que foi digitado): balança e mostra onde fechar
+function nudgeModal(backdrop) {
+  const card = backdrop.querySelector(".modal-card");
+  card?.classList.remove("nudge"); void card?.offsetWidth; card?.classList.add("nudge");
+  const x = card?.querySelector(".modal-x");
+  x?.classList.remove("pulse-x"); void x?.offsetWidth; x?.classList.add("pulse-x");
+  toast(x ? "Para sair, clique no X no canto da janela." : "Conclua ou cancele para sair.");
+}
 $("#openLogin").addEventListener("click", () => showModal("login"));
 ["openTrial","heroTrial","howTrial"].forEach(id => $("#"+id).addEventListener("click", () => showModal("register")));
 $$("[data-close-modal]").forEach(b => b.addEventListener("click", closeModal));
-$("#authModal").addEventListener("click", e => { if (e.target.id === "authModal") closeModal(); });
+$("#authModal").addEventListener("click", (e) => { if (e.target.id === "authModal") nudgeModal(e.target); });
 
 function makeCompanyId() { return "emp_" + crypto.randomUUID().replaceAll("-", "").slice(0, 16); }
 async function hashDemoPassword(password) {
@@ -115,6 +140,7 @@ function enterApp() {
   document.body.classList.add("in-app");
   $("#storeNameSide").textContent = currentCompany.storeName;
   applyBranding(currentCompany.storeName);            // [NEXUS CLOUD] app vira "PDV <loja>"
+  refreshTheme();
   setConnection(false); renderPlanStatus(); renderBlocked();
   renderProducts(); renderInventory(); updateCart(); renderTrialBanner();
   showPanel("pos");
@@ -181,12 +207,12 @@ $$("[data-view]").forEach(b => b.addEventListener("click", () => showPanel(b.dat
 function renderProducts() {
   const term = ($("#productSearch")?.value || "").trim().toLowerCase();
   const favs = new Set(currentCompany.favorites || []);
-  const products = currentCompany.products.filter(p =>
+  const products = sortedProducts().filter(p =>
     (activeCategory === "Todos" || (activeCategory === "Favoritos" ? favs.has(p.id) : p.category === activeCategory)) &&
     `${p.name} ${p.code}`.toLowerCase().includes(term));
   $("#productCount").textContent = `${products.length} ${products.length === 1 ? "produto" : "produtos"} · toque no card para adicionar`;
   $("#productsTitle").textContent = activeCategory === "Todos" ? "Todos os produtos" : activeCategory === "Favoritos" ? "♥ Favoritos" : activeCategory;
-  renderCategories(); renderTopSellers();
+  renderCategories();
   $("#productGrid").innerHTML = products.map(p => {
     const stockClass = p.stock <= 0 ? "out" : p.stock < 10 ? "low" : "";
     const stockText = p.stock <= 0 ? "Sem estoque" : `${p.stock} em estoque`;
@@ -227,24 +253,6 @@ function renderCategories() {
     activeCategory = b.dataset.cat;
     $(".col-products")?.scrollTo({ top: 0 });
     renderProducts();
-  }));
-}
-// Coluna dos mais vendidos (a partir das vendas); sem vendas ainda, mostra sugestões
-function renderTopSellers() {
-  const sold = {};
-  (currentCompany.sales || []).forEach(s => (s.items || []).forEach(it => { if (it.productId) sold[it.productId] = (sold[it.productId] || 0) + Number(it.qty || 0); }));
-  const ranked = Object.entries(sold).map(([id, qty]) => ({ p: currentCompany.products.find(x => x.id === id), qty })).filter(x => x.p).sort((a, b) => b.qty - a.qty).slice(0, 15);
-  const hasSales = ranked.length > 0;
-  const list = hasSales ? ranked : currentCompany.products.slice(0, 10).map(p => ({ p, qty: 0 }));
-  $("#topTitle").textContent = hasSales ? "🔥 Mais vendidos" : "⭐ Sugestões";
-  $("#topSellers").innerHTML = (hasSales ? "" : '<p class="top-hint">Ainda sem vendas. Os campeões de venda aparecem aqui sozinhos.</p>') +
-    list.map(({ p, qty }, i) => `<button type="button" class="top-item" data-top="${p.id}">
-      <span class="ti-rank">${i + 1}</span><span class="ti-emoji">${p.emoji || "📦"}</span>
-      <span class="ti-name">${escapeHTML(p.name)}</span>
-      <span class="ti-meta"><span>${hasSales ? `${qty} vendido${qty === 1 ? "" : "s"}` : escapeHTML(p.category || "")}</span><strong>${money(p.price)}</strong></span></button>`).join("");
-  $$("[data-top]").forEach(b => b.addEventListener("click", () => {
-    addToCart(b.dataset.top);
-    b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash");
   }));
 }
 $("#productSearch").addEventListener("keydown", e => {
@@ -320,24 +328,22 @@ $("#clearCart").addEventListener("click", async () => { if (!cart.length || !awa
 // [NEXUS HW] "Finalizar venda" abre o modal de pagamento/troco/impressão (ver finalizeSale no módulo de periféricos).
 $("#checkoutBtn").addEventListener("click", openCheckout);
 
+const sortedProducts = () => [...currentCompany.products].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR"));
+const marginOf = (p) => (p.cost > 0 && p.price > 0) ? Math.round((p.price - p.cost) / p.price * 100) : null;
 function renderInventory() {
-  $("#inventoryTable").innerHTML = currentCompany.products.map(p => `<tr><td><strong>${p.emoji || "📦"} ${escapeHTML(p.name)}</strong></td><td>${escapeHTML(p.category)}</td><td>${escapeHTML(p.code)}</td><td>${money(p.price)}</td><td class="${p.stock < 10 ? "stock-low" : ""}">${p.stock} un.</td><td><button class="table-action" data-edit="${p.id}">Editar</button> <button class="table-action" data-delete="${p.id}">Excluir</button></td></tr>`).join("");
+  $("#inventoryTable").innerHTML = sortedProducts().map(p => {
+    const m = marginOf(p);
+    return `<tr><td><strong>${p.emoji || "📦"} ${escapeHTML(p.name)}</strong></td><td>${escapeHTML(p.category)}</td><td>${escapeHTML(p.code)}</td>
+      <td>${p.cost > 0 ? money(p.cost) : "—"}</td><td><b>${money(p.price)}</b></td><td class="${m !== null && m < 15 ? "stock-low" : ""}">${m === null ? "—" : m + "%"}</td>
+      <td class="${p.stock < 10 ? "stock-low" : ""}">${p.stock} un.</td><td><button class="table-action" data-edit="${p.id}">Editar</button> <button class="table-action" data-delete="${p.id}">Excluir</button></td></tr>`;
+  }).join("") || '<tr><td colspan="8" class="empty-cart">Nenhum produto cadastrado ainda.</td></tr>';
   $$("[data-edit]").forEach(b => b.addEventListener("click", () => editProduct(b.dataset.edit)));
   $$("[data-delete]").forEach(b => b.addEventListener("click", () => deleteProduct(b.dataset.delete)));
 }
 async function editProduct(id) {
   if (!await authorize("editProduct")) return;
   const p = currentCompany.products.find(x => x.id === id);
-  const price = prompt(`Novo preço para ${p.name}:`, p.price);
-  if (price === null) return;
-  const parsed = Number(price.replace(",", "."));
-  if (!Number.isFinite(parsed) || parsed < 0) { toast("Informe um preço válido."); return; }
-  p.price = parsed;
-  const stock = prompt("Quantidade em estoque:", p.stock);
-  // campo vazio ou cancelado mantém o estoque atual (antes, vazio zerava o estoque)
-  const stockChanged = stock !== null && stock.trim() !== "" && Number.isInteger(Number(stock)) && Number(stock) >= 0 && Number(stock) !== p.stock;
-  if (stockChanged) p.stock = Number(stock);
-  await recordProduct(p, { stockChanged }); renderInventory(); renderProducts(); toast("Produto atualizado.");
+  if (p) openProductModal("", false, p, { skipAuth: true });
 }
 async function deleteProduct(id) {
   if (!await authorize("deleteProduct")) return;
@@ -493,39 +499,94 @@ document.addEventListener("keydown", (e) => {
 
 // ---------- Cadastro rápido de produto (sem travar o caixa) ----------
 let productModalFromScanner = false;
-async function openProductModal(code = "", fromScanner = false) {
-  if (!await authorize("addProduct")) { focusScanner(); return; }
-  productModalFromScanner = fromScanner;
-  $("#productForm").reset();
-  $("#pfCode").value = code;
-  $("#pfStock").value = "0";
-  $("#productFormError").textContent = "";
-  $("#productModal").classList.remove("hidden");
-  setTimeout(() => (code ? $("#pfName") : $("#pfCode")).focus(), 30);
+const NEW_CATEGORY = "__nova__";
+const cleanCategory = (v) => String(v || "").trim().replace(/\s+/g, " ").slice(0, 40).replace(/^./, c => c.toUpperCase());
+const BASE_CATEGORIES = ["Mercearia", "Bebidas", "Limpeza"];
+let editingProductId = null;
+function fillCategorySelect(selected) {
+  const cats = [...new Set([...BASE_CATEGORIES, ...currentCompany.products.map(p => p.category).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  $("#pfCategory").innerHTML = cats.map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join("") + `<option value="${NEW_CATEGORY}">➕ Nova categoria…</option>`;
+  $("#pfCategory").value = selected && cats.includes(selected) ? selected : (activeCategory !== "Todos" && activeCategory !== "Favoritos" && cats.includes(activeCategory) ? activeCategory : cats[0]);
+  $("#pfNewCatWrap").classList.add("hidden");
 }
+function updateMarginPreview() {
+  const price = parseMoney($("#pfPrice").value), cost = parseMoney($("#pfCost").value);
+  const el = $("#pfMargin");
+  if (Number.isFinite(price) && price > 0 && Number.isFinite(cost) && cost > 0) {
+    const m = Math.round((price - cost) / price * 100);
+    el.textContent = `${m}% · lucro ${money(price - cost)}`;
+    el.style.color = m < 0 ? "var(--danger)" : m < 15 ? "#b45309" : "var(--good)";
+  } else { el.textContent = "—"; el.style.color = ""; }
+}
+async function openProductModal(code = "", fromScanner = false, product = null, { skipAuth = false } = {}) {
+  if (!skipAuth && !await authorize("addProduct")) { focusScanner(); return; }
+  productModalFromScanner = fromScanner;
+  editingProductId = product?.id || null;
+  $("#productForm").reset();
+  fillCategorySelect(product?.category);
+  $("#pfCode").value = product ? (product.code || "") : code;
+  $("#pfName").value = product?.name || "";
+  $("#pfPrice").value = product ? String(product.price).replace(".", ",") : "";
+  $("#pfCost").value = product?.cost > 0 ? String(product.cost).replace(".", ",") : "";
+  $("#pfStock").value = product ? product.stock : "0";
+  $("#pfStockLabel").textContent = product ? "Estoque atual" : "Estoque inicial";
+  $("#productModalTitle").textContent = product ? "Editar produto" : "Novo produto";
+  $("#productModalEyebrow").textContent = product ? "EDIÇÃO DE PRODUTO" : "CADASTRO DE PRODUTO";
+  $("#productFormSubmit").textContent = product ? "Salvar alterações →" : "Cadastrar produto →";
+  $("#productFormError").textContent = "";
+  updateMarginPreview();
+  $("#productModal").classList.remove("hidden");
+  setTimeout(() => (product ? $("#pfName") : code ? $("#pfName") : $("#pfCode")).focus(), 30);
+}
+$("#pfCategory").addEventListener("change", () => {
+  const isNew = $("#pfCategory").value === NEW_CATEGORY;
+  $("#pfNewCatWrap").classList.toggle("hidden", !isNew);
+  if (isNew) setTimeout(() => $("#pfNewCategory").focus(), 20);
+});
+$("#pfPrice").addEventListener("input", updateMarginPreview);
+$("#pfCost").addEventListener("input", updateMarginPreview);
 function closeProductModal() {
   $("#productModal").classList.add("hidden");
   focusScanner();
 }
 $$("[data-close-product]").forEach(b => b.addEventListener("click", closeProductModal));
-$("#productModal").addEventListener("click", (e) => { if (e.target.id === "productModal") closeProductModal(); });
+$("#productModal").addEventListener("click", (e) => { if (e.target.id === "productModal") nudgeModal(e.target); });
 $("#pfCode").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#pfName").focus(); } });
 $("#productForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const err = $("#productFormError");
   const code = $("#pfCode").value.trim(), name = $("#pfName").value.trim();
   const price = parseMoney($("#pfPrice").value);
-  const stock = Number($("#pfStock").value || 0);
-  if (!name) { err.textContent = "Informe o nome do produto."; return; }
-  if (!Number.isFinite(price) || price < 0) { err.textContent = "Informe um preço válido (ex.: 9,90)."; return; }
+  const costText = $("#pfCost").value.trim();
+  const cost = costText ? parseMoney(costText) : null;
+  const stockText = String($("#pfStock").value).trim();
+  const stock = Number(stockText || 0);
+  let category = $("#pfCategory").value;
+  if (category === NEW_CATEGORY) category = cleanCategory($("#pfNewCategory").value);
+  if (!name) { err.textContent = "Informe o nome do produto."; $("#pfName").focus(); return; }
+  if (!category) { err.textContent = "Escolha uma categoria ou digite a nova."; return; }
+  if (!Number.isFinite(price) || price <= 0) { err.textContent = "Informe o preço de venda (ex.: 9,90)."; $("#pfPrice").focus(); return; }
+  if (cost !== null && (!Number.isFinite(cost) || cost < 0)) { err.textContent = "Preço de custo inválido. Deixe em branco se não quiser informar."; return; }
   if (!Number.isInteger(stock) || stock < 0) { err.textContent = "O estoque deve ser um número inteiro."; return; }
-  if (code && currentCompany.products.some(p => String(p.code || "").trim() === code)) { err.textContent = "Já existe um produto com este código."; return; }
-  const product = { id: crypto.randomUUID(), name, category: $("#pfCategory").value, code, price, stock, emoji: "📦" };
-  currentCompany.products.push(product);
-  try { await recordProduct(product); } catch (ex) { console.error(ex); err.textContent = "Não foi possível salvar o produto."; return; }
+  if (code && currentCompany.products.some(p => p.id !== editingProductId && String(p.code || "").trim() === code)) { err.textContent = "Já existe outro produto com este código."; return; }
+  const emojiFor = (cat) => CATEGORY_ICONS[cat] || "📦";
+  let product, stockChanged = true;
+  if (editingProductId) {
+    product = currentCompany.products.find(p => p.id === editingProductId);
+    if (!product) { err.textContent = "Este produto foi excluído."; return; }
+    stockChanged = stockText !== "" && stock !== product.stock;   // só manda estoque se mudou de verdade
+    Object.assign(product, { name, category, code, price, cost: cost ?? null, ...(stockChanged ? { stock } : {}) });
+    if (!product.emoji || product.emoji === "📦") product.emoji = emojiFor(category);
+  } else {
+    product = { id: crypto.randomUUID(), name, category, code, price, cost: cost ?? null, stock, emoji: emojiFor(category) };
+    currentCompany.products.push(product);
+  }
+  try { await recordProduct(product, { stockChanged }); } catch (ex) { console.error(ex); err.textContent = "Não foi possível salvar o produto."; return; }
   renderInventory(); renderProducts();
   $("#productModal").classList.add("hidden");
-  if (productModalFromScanner) {
+  if (editingProductId) {
+    toast("Produto atualizado.");
+  } else if (productModalFromScanner) {
     hideScanAlert(); addToCart(product.id); beep(true);
     toast(`${name} cadastrado e adicionado à venda.`);
   } else {
@@ -562,7 +623,7 @@ function closeCheckout() {
   focusScanner();
 }
 $$("[data-close-checkout]").forEach(b => b.addEventListener("click", closeCheckout));
-$("#checkoutModal").addEventListener("click", (e) => { if (e.target.id === "checkoutModal") closeCheckout(); });
+$("#checkoutModal").addEventListener("click", (e) => { if (e.target.id === "checkoutModal") nudgeModal(e.target); });
 $$("input[name=payMethod]").forEach(r => r.addEventListener("change", () => {
   updateChange();
   if (selectedPay() === "Dinheiro") $("#cashReceived").focus();
@@ -780,7 +841,7 @@ $("#permForm").addEventListener("submit", async (e) => {
 });
 const cancelPerm = () => { if (permResolve) { permResolve(false); focusScanner(); } };
 $$("[data-close-perm]").forEach(b => b.addEventListener("click", cancelPerm));
-$("#permModal").addEventListener("click", (e) => { if (e.target.id === "permModal") cancelPerm(); });
+$("#permModal").addEventListener("click", (e) => { if (e.target.id === "permModal") nudgeModal(e.target); });
 
 async function authorize(key) {
   const level = permLevel(key);
@@ -880,7 +941,8 @@ $("#removeSupPass").addEventListener("click", async () => {
 // Cada alteração entra numa fila (outbox) e é enviada sozinha. Do servidor,
 // só baixamos o que mudou desde o último cursor.
 // ==========================================================================
-const productPayload = (p) => ({ name: p.name, category: p.category, code: p.code || "", price: p.price, emoji: p.emoji || "📦" });
+const productPayload = (p) => ({ name: p.name, category: p.category, code: p.code || "", price: p.price, cost: p.cost ?? null, emoji: p.emoji || "📦" });
+const SYNC_SETTING_KEYS = ["hardware", "favorites", "security", "appearance"];
 const syncMeta = () => (currentCompany.sync ||= { baselineDone: false, cursors: {} });
 
 // Gravações pontuais (aparelho + fila para a nuvem)
@@ -916,7 +978,7 @@ async function ensureBaseline() {
   const outbox = [
     ...currentCompany.products.map(p => ({ t: "p", op: "u", id: p.id, m: 1, d: productPayload(p), s: p.stock })),
     ...currentCompany.sales.map(s => ({ t: "s", d: s, a: false })),   // estoque já está descontado no aparelho
-    ...["hardware", "favorites", "security"].filter(k => currentCompany[k] !== undefined).map(k => ({ t: "c", k, v: currentCompany[k], m: 1 }))
+    ...SYNC_SETTING_KEYS.filter(k => currentCompany[k] !== undefined).map(k => ({ t: "c", k, v: currentCompany[k], m: 1 }))
   ];
   sync.baselineDone = true;
   await commitLocal(currentCompany.empresa_id, { meta: currentCompany, outbox });
@@ -1005,7 +1067,7 @@ async function applyPull(data) {
       if (i >= 0) { currentCompany.products.splice(i, 1); delIds.push(p.id); cart = cart.filter(x => x.id !== p.id); changed = true; }
       continue;
     }
-    const next = { id: p.id, name: p.name, category: p.category || "Mercearia", code: p.code || "", price: Number(p.price), stock: Number(p.stock), emoji: p.emoji || "📦" };
+    const next = { id: p.id, name: p.name, category: p.category || "Mercearia", code: p.code || "", price: Number(p.price), cost: p.cost ?? null, stock: Number(p.stock), emoji: p.emoji || "📦" };
     if (i >= 0) currentCompany.products[i] = { ...currentCompany.products[i], ...next }; else currentCompany.products.push(next);
     putProducts.push(next); changed = true;
   }
@@ -1017,10 +1079,11 @@ async function applyPull(data) {
   }
   if (newSales.length) currentCompany.sales.sort((a, b) => a.createdAt - b.createdAt);
   for (const st of data.settings) {
-    if (pendingSettings.has(st.key) || !["hardware", "favorites", "security"].includes(st.key)) continue;
+    if (pendingSettings.has(st.key) || !SYNC_SETTING_KEYS.includes(st.key)) continue;
     currentCompany[st.key] = st.value; changed = true;
   }
   syncMeta().cursors = data.cursors;
+  if (data.settings.some(st => st.key === "appearance")) refreshTheme();
   await commitLocal(storeId, { meta: currentCompany, products: putProducts, deleteProductIds: delIds, sales: newSales });
   return changed || newSales.length > 0;
 }
@@ -1317,7 +1380,7 @@ async function requestPlan(plan) {
 }
 const closePlansModal = () => { $("#plansModal").classList.add("hidden"); focusScanner(); };
 $$("[data-close-plans]").forEach(b => b.addEventListener("click", closePlansModal));
-$("#plansModal").addEventListener("click", (e) => { if (e.target.id === "plansModal") closePlansModal(); });
+$("#plansModal").addEventListener("click", (e) => { if (e.target.id === "plansModal") nudgeModal(e.target); });
 $("#bannerPlans").addEventListener("click", openPlansModal);
 $("#blockedPlans").addEventListener("click", openPlansModal);
 
@@ -1352,7 +1415,7 @@ async function openMasterLogin() {
 }
 const closeMasterLogin = () => $("#masterLoginModal").classList.add("hidden");
 $$("[data-close-master-login]").forEach(b => b.addEventListener("click", closeMasterLogin));
-$("#masterLoginModal").addEventListener("click", (e) => { if (e.target.id === "masterLoginModal") closeMasterLogin(); });
+$("#masterLoginModal").addEventListener("click", (e) => { if (e.target.id === "masterLoginModal") nudgeModal(e.target); });
 $("#masterLoginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const err = $("#masterLoginError");

@@ -483,3 +483,21 @@ body[data-theme=azul] .toast{background:#16233b}
 @media(max-width:1250px){.pos-columns{grid-template-columns:170px minmax(0,1fr)}}
 @media(max-width:620px){.col-products .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.col-products .product-media{height:76px;font-size:38px}}
 .catalog-area,.pos-columns,.pos-col{min-width:0}
+/* [NEXUS v5] formulário de produto, janelas que não fecham ao clicar fora, caixa em 2 colunas */
+.product-form-card{width:min(100%,480px)}
+.product-form-card .opt{font-weight:500;color:var(--muted);font-size:9px}
+#pfNewCatWrap{margin-top:8px}
+.margin-box{display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:2px}
+.margin-box span{display:block;font-size:10px;font-weight:700;color:var(--muted);margin:13px 0 7px}
+.margin-box strong{display:flex;align-items:center;min-height:41px;padding:0 12px;border-radius:9px;background:var(--surface2);font-size:12px}
+.modal-card.nudge{animation:nudge .35s ease}
+@keyframes nudge{20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.modal-x.pulse-x{animation:pulseX 1s ease 2}
+@keyframes pulseX{50%{color:var(--danger);transform:scale(1.35)}}
+.modal-x{transition:transform .15s}
+.pos-columns{grid-template-columns:200px minmax(0,1fr)!important;grid-template-rows:auto!important}
+.col-cats{grid-row:auto!important}
+.col-products .product-grid{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
+@media(max-width:1250px){.pos-columns{grid-template-columns:170px minmax(0,1fr)!important;height:calc(100vh - 290px)}.col-cats{max-height:none}.col-products{max-height:none;min-height:0}}
+@media(max-width:620px){.pos-columns{display:flex!important;height:auto}.col-products .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.col-products .col-title{padding-left:4px!important}

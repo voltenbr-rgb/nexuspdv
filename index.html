@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#1f8a65" />
+  <meta name="theme-color" content="#f59e0b" />
   <title>Nexus PDV — Frente de caixa simples e inteligente</title>
   <!-- App instalável (PWA): o nome muda para "PDV + nome da loja" depois do login -->
   <link rel="manifest" id="manifestLink" href="/api/manifest" />
@@ -20,7 +20,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body data-theme="verde" class="theme-light">
+<body data-theme="amarelo" class="theme-light">
   <div id="trialBanner" class="trial-banner hidden">
     <span>⚠️ Você está no Teste Grátis: <strong id="daysRemaining">7</strong> dias restantes.</span>
     <button id="dismissTrial" class="banner-close" aria-label="Fechar aviso">Fechar ×</button><button id="bannerPlans" class="banner-plans hidden" type="button">Conhecer os planos →</button>
@@ -34,12 +34,6 @@
       <a href="#recursos">Recursos</a><a href="#como-funciona">Como funciona</a><a href="#planos">Planos</a>
     </nav>
     <div class="header-actions">
-      <div class="theme-picker" aria-label="Escolher tema">
-        <button class="theme-dot verde active" data-theme-choice="verde" title="Verde (padrão)"></button>
-        <button class="theme-dot laranja" data-theme-choice="laranja" title="Laranja"></button>
-        <button class="theme-dot amarelo" data-theme-choice="amarelo" title="Amarelo"></button>
-        <button class="theme-dot azul" data-theme-choice="azul" title="Modo azul"></button>
-      </div>
       <button class="btn btn-ghost" id="openLogin">Entrar</button>
       <button class="btn btn-primary" id="openTrial">Teste grátis <span>7 dias</span></button>
     </div>
@@ -154,7 +148,6 @@
         <!-- [/NEXUS HW] -->
         <div class="pos-layout"><div class="catalog-area"><div class="panel-toolbar catalog-head"><div><h2>Encontre o produto</h2><p id="productCount">Toque no card para adicionar à venda.</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="productSearch" placeholder="Buscar por nome ou código..." autocomplete="off"></label></div><div class="pos-columns">
             <nav class="pos-col col-cats" aria-label="Categorias"><div class="col-title">Categorias</div><div id="categoryList" class="cat-list"></div></nav>
-            <section class="pos-col col-top" aria-labelledby="topTitle"><div class="col-title" id="topTitle">🔥 Mais vendidos</div><div id="topSellers" class="top-list"></div></section>
             <section class="pos-col col-products" aria-labelledby="productsTitle"><div class="col-title" id="productsTitle">Todos os produtos</div><div id="productGrid" class="product-grid"></div></section>
           </div></div>
           <aside class="cart-panel">
@@ -174,7 +167,7 @@
           </aside>
         </div>
       </section>
-      <section id="productsPanel" class="app-panel hidden"><div class="panel-toolbar"><div><h2>Produtos e estoque</h2><p>Gerencie os itens cadastrados na sua loja.</p></div><button id="addProductBtn" class="btn btn-primary">＋ Novo produto</button></div><div class="table-wrap"><table><thead><tr><th>PRODUTO</th><th>CATEGORIA</th><th>CÓDIGO</th><th>PREÇO</th><th>ESTOQUE</th><th>AÇÕES</th></tr></thead><tbody id="inventoryTable"></tbody></table></div></section>
+      <section id="productsPanel" class="app-panel hidden"><div class="panel-toolbar"><div><h2>Produtos e estoque</h2><p>Gerencie os itens cadastrados na sua loja.</p></div><button id="addProductBtn" class="btn btn-primary">＋ Novo produto</button></div><div class="table-wrap"><table><thead><tr><th>PRODUTO</th><th>CATEGORIA</th><th>CÓDIGO</th><th>CUSTO</th><th>PREÇO</th><th>MARGEM</th><th>ESTOQUE</th><th>AÇÕES</th></tr></thead><tbody id="inventoryTable"></tbody></table></div></section>
       <section id="adminPanel" class="app-panel hidden">
         <div id="adminLock" class="adm-lock">
           <div class="adm-lock-card">
@@ -200,7 +193,7 @@
           <small id="securityStatus" class="status-text"></small>
           <div class="security-footnote">As senhas ficam guardadas só em formato criptografado e valem em todos os aparelhos da loja.</div>
         </div>
-        <div class="settings-card appearance-card"><div class="settings-card-head"><span class="settings-icon">◐</span><div><h3>Aparência do sistema</h3><p>Escolha a paleta que combina com sua loja.</p></div></div><div class="theme-options"><button data-theme-choice="verde"><i class="verde"></i><span>Verde (padrão)</span></button><button data-theme-choice="laranja"><i class="laranja"></i><span>Laranja</span></button><button data-theme-choice="amarelo"><i class="amarelo"></i><span>Amarelo</span></button><button data-theme-choice="azul"><i class="azul"></i><span>Modo azul</span></button></div></div>
+        <div class="settings-card appearance-card"><div class="settings-card-head"><span class="settings-icon">◐</span><div><h3>Aparência do sistema</h3><p>Só o ADM muda. Vale para todos os aparelhos da loja.</p></div></div><div class="theme-options"><button data-theme-choice="amarelo"><i class="amarelo"></i><span>Amarelo (padrão)</span></button><button data-theme-choice="verde"><i class="verde"></i><span>Verde</span></button><button data-theme-choice="laranja"><i class="laranja"></i><span>Laranja</span></button><button data-theme-choice="azul"><i class="azul"></i><span>Modo azul</span></button></div></div>
         <!-- [NEXUS HW] Configuração de Hardware (PDV) -->
         <div class="settings-card hardware-card"><div class="settings-card-head"><span class="settings-icon">🖨</span><div><h3>Configuração de Hardware (PDV)</h3><p>Impressora térmica de recibos e leitor de código de barras.</p></div></div>
           <div class="hw-layout">
@@ -314,12 +307,21 @@
   </div></div>
 
   <!-- [NEXUS HW] Modal de cadastro rápido de produto -->
-  <div id="productModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="productModalTitle"><div class="modal-card"><button class="modal-x" data-close-product>×</button><div class="eyebrow">CADASTRO RÁPIDO</div><h2 id="productModalTitle">Novo produto</h2><p>O caixa continua aberto enquanto você cadastra.</p>
-    <form id="productForm">
-      <label for="pfCode">Código de barras</label><input id="pfCode" autocomplete="off" placeholder="Bipe ou digite o código">
-      <label for="pfName">Nome do produto</label><input id="pfName" required maxlength="60" placeholder="Ex.: Leite integral 1L">
-      <div class="form-cols"><div><label for="pfPrice">Preço (R$)</label><input id="pfPrice" inputmode="decimal" required placeholder="0,00"></div><div><label for="pfStock">Estoque inicial</label><input id="pfStock" type="number" min="0" step="1" value="0"></div></div>
-      <label for="pfCategory">Categoria</label><select id="pfCategory"><option>Mercearia</option><option>Bebidas</option><option>Limpeza</option></select>
+  <div id="productModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="productModalTitle"><div class="modal-card product-form-card"><button class="modal-x" data-close-product aria-label="Fechar">×</button><div class="eyebrow" id="productModalEyebrow">CADASTRO DE PRODUTO</div><h2 id="productModalTitle">Novo produto</h2><p>O caixa continua aberto enquanto você cadastra.</p>
+    <form id="productForm" novalidate>
+      <label for="pfCode">Código de barras</label><input id="pfCode" autocomplete="off" placeholder="Bipe ou digite o código (opcional)">
+      <label for="pfName">Nome do produto *</label><input id="pfName" maxlength="60" placeholder="Ex.: Leite integral 1L">
+      <label for="pfCategory">Categoria *</label>
+      <select id="pfCategory"></select>
+      <div id="pfNewCatWrap" class="hidden"><input id="pfNewCategory" maxlength="40" placeholder="Digite a nova categoria (ex.: Padaria)"></div>
+      <div class="form-cols">
+        <div><label for="pfPrice">Preço de venda (R$) *</label><input id="pfPrice" inputmode="decimal" placeholder="0,00"></div>
+        <div><label for="pfCost">Preço de custo (R$) <small class="opt">opcional</small></label><input id="pfCost" inputmode="decimal" placeholder="0,00"></div>
+      </div>
+      <div class="form-cols">
+        <div><label for="pfStock" id="pfStockLabel">Estoque inicial</label><input id="pfStock" type="number" min="0" step="1" value="0"></div>
+        <div class="margin-box"><span>Margem de lucro</span><strong id="pfMargin">—</strong></div>
+      </div>
       <div id="productFormError" class="form-error"></div>
       <button class="btn btn-primary modal-submit" type="submit" id="productFormSubmit">Cadastrar produto →</button>
     </form>

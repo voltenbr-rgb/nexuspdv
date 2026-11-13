@@ -251,7 +251,7 @@ route("POST", /^plan-request$/, async ({ db, request, body }) => {
 // =====================================================================
 const SYNC_PUSH_MAX = 200;      // alterações por envio
 const SYNC_PULL_LIMIT = 300;    // linhas por tabela por pedido
-const SYNC_SETTINGS = ["hardware", "favorites", "security"];
+const SYNC_SETTINGS = ["hardware", "favorites", "security", "appearance"];
 const INITIAL_SALES_DAYS = 30;  // primeira sincronização num aparelho novo: vendas dos últimos 30 dias
 
 const num = (v, def = 0) => (Number.isFinite(Number(v)) ? Number(v) : def);
@@ -267,16 +267,19 @@ function productStatement(db, storeId, c, now) {
   const hasStock = c.s !== undefined && c.s !== null;
   const stock = hasStock ? int(c.s, NaN) : 0;
   if (hasStock && (!Number.isInteger(stock) || Math.abs(stock) > 1e9)) fail(400, "invalid_product");
+  const costRaw = d.cost === null || d.cost === undefined || d.cost === "" ? null : num(d.cost, NaN);
+  if (costRaw !== null && (!Number.isFinite(costRaw) || costRaw < 0 || costRaw > 1e7)) fail(400, "invalid_product");
   const m = int(c.m, 0);
   // Vence a alteração mais recente (modified_at). Estoque tem marca de tempo própria,
   // porque as vendas baixam o estoque no servidor sem "editar" o produto.
-  return db.prepare(`INSERT INTO products (store_id, id, name, category, code, price, emoji, stock, deleted, modified_at, stock_modified_at, updated_at)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10, ?11)
+  return db.prepare(`INSERT INTO products (store_id, id, name, category, code, price, emoji, stock, deleted, modified_at, stock_modified_at, updated_at, cost)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10, ?11, ?12)
     ON CONFLICT(store_id, id) DO UPDATE SET
       name     = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.name     ELSE products.name END,
       category = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.category ELSE products.category END,
       code     = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.code     ELSE products.code END,
       price    = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.price    ELSE products.price END,
+      cost     = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.cost     ELSE products.cost END,
       emoji    = CASE WHEN excluded.modified_at > products.modified_at THEN excluded.emoji    ELSE products.emoji END,
       deleted  = CASE WHEN excluded.modified_at > products.modified_at THEN 0                 ELSE products.deleted END,
       stock    = CASE WHEN excluded.stock_modified_at > products.stock_modified_at THEN excluded.stock ELSE products.stock END,
@@ -284,7 +287,7 @@ function productStatement(db, storeId, c, now) {
       stock_modified_at = MAX(products.stock_modified_at, excluded.stock_modified_at),
       updated_at = excluded.updated_at`)
     .bind(storeId, c.id, name, cleanText(d.category, 40), cleanText(d.code, 64), price, cleanText(d.emoji, 8),
-      stock, m, hasStock ? m : 0, now);
+      stock, m, hasStock ? m : 0, now, costRaw);
 }
 
 function saleStatements(db, storeId, c, now) {
@@ -359,7 +362,7 @@ route("GET", /^sync\/pull$/, async ({ db, request, body, url }) => {
   const L = SYNC_PULL_LIMIT + 1;
   // updated_at >= cursor + desempate pelo id: não perde linhas gravadas no mesmo milissegundo
   const [products, sales, settings] = await db.batch([
-    db.prepare(`SELECT id, name, category, code, price, emoji, stock, deleted, updated_at FROM products
+    db.prepare(`SELECT id, name, category, code, price, cost, emoji, stock, deleted, updated_at FROM products
       WHERE store_id = ?1 AND updated_at >= ?2 AND (updated_at > ?2 OR id > ?3) ORDER BY updated_at, id LIMIT ?4`).bind(store.id, pc.t, pc.i, L),
     db.prepare(`SELECT id, number, created_at, subtotal, discount, total, payment, received, change_value, items, updated_at FROM sales
       WHERE store_id = ?1 AND updated_at >= ?2 AND (updated_at > ?2 OR id > ?3) AND created_at >= ?4 ORDER BY updated_at, id LIMIT ?5`)
@@ -371,7 +374,7 @@ route("GET", /^sync\/pull$/, async ({ db, request, body, url }) => {
   const P = page(products), S = page(sales), C = page(settings);
   const last = (rows, key, prev) => rows.length ? { t: rows.at(-1).updated_at, i: rows.at(-1)[key] } : prev;
   return json({
-    products: P.map(r => ({ id: r.id, name: r.name, category: r.category, code: r.code, price: r.price, emoji: r.emoji, stock: r.stock, deleted: Boolean(r.deleted) })),
+    products: P.map(r => ({ id: r.id, name: r.name, category: r.category, code: r.code, price: r.price, cost: r.cost, emoji: r.emoji, stock: r.stock, deleted: Boolean(r.deleted) })),
     sales: S.map(r => ({ id: r.id, number: r.number, createdAt: r.created_at, subtotal: r.subtotal, discount: r.discount, total: r.total,
       payment: r.payment, received: r.received, change: r.change_value, items: JSON.parse(r.items || "[]") })),
     settings: C.map(r => ({ key: r.key, value: JSON.parse(r.value) })),

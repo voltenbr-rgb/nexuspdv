@@ -17,14 +17,14 @@ Depois do login, o app passa a se chamar **"PDV + nome da loja"** (ex.: *PDV Loj
 No Android/Chrome aparece o botão **Instalar app**. No iPhone: Compartilhar → Adicionar à Tela de Início.
 
 ## Temas
-- **Verde** (padrão): branco com verde e detalhes amarelos
-- **Laranja** e **Amarelo**: tons de caixa
-- **Modo azul**: branco com azul (barra lateral azul, cards brancos), alternado pelo botão 🔵 no topo do caixa
+- **Amarelo** (padrão): branco com amarelo
+- **Verde** e **Laranja**
+- **Modo azul**: branco com azul (barra lateral azul, cards brancos)
 
-Escolha em Configurações ADM → Aparência, ou nas bolinhas do topo da página inicial.
+Só o ADM escolhe a aparência da loja (Configurações ADM → Aparência), e ela vale em todos os aparelhos. O botão 🔵 **Modo azul**, no topo do caixa, alterna entre o azul e o tema da loja naquele aparelho.
 
 ## Caixa
-- Três colunas, cada uma com rolagem própria: **Categorias** | **Mais vendidos** (calculado pelas vendas; sem vendas, mostra sugestões) | **Produtos** em cards
+- Duas colunas, cada uma com rolagem própria: **Categorias** (montadas a partir dos produtos) | **Todos os produtos** em cards, em ordem alfabética
 - Cards com preço em destaque, favoritos (♥), estoque por cor e botão Adicionar
 - Carrinho com miniaturas, quantidade, remover, desconto (R$ ou %, protegido pela senha de autorização) e forma de pagamento
 - Aviso do teste de 7 dias: mostra quantos dias restam e volta a cada 24 h depois de fechado. No último dia não dá para fechar, e o botão vira **Conhecer os planos**. O pedido de plano aparece na Área Master (filtro "Pedidos de plano").
@@ -44,6 +44,12 @@ Opcional: para usar uma senha master definida no painel da Cloudflare em vez da 
 
 ## Planos (ilustrativos)
 Básico R$ 39,90 · Completo R$ 99,90 · Premium R$ 189,90 por mês.
+
+## Produtos
+- Cadastro e edição no mesmo formulário: código de barras, nome, **categoria** (escolha uma existente ou **➕ Nova categoria**), **preço de venda** (obrigatório), **preço de custo** (opcional), estoque e margem de lucro calculada na hora.
+- A tela de estoque mostra custo, preço e margem.
+- Excluir e editar seguem as permissões do ADM. Exclusões e cadastros valem em todos os aparelhos, mesmo depois de recarregar a página.
+- As janelas só fecham pelo **X**. Um clique fora não apaga o que já foi digitado: a janela balança e avisa onde fechar.
 
 ## Configurações ADM e permissões
 - A tela **Configurações ADM** fica trancada. Só abre com a **senha do ADM**, e tranca de novo quando você sai dela.
