@@ -24,17 +24,29 @@ function toast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2800);
 }
 // [NEXUS THEME] tema de caixa: laranja (padrão), amarelo ou escuro
-const THEMES = { laranja: "#f97316", amarelo: "#f59e0b", dark: "#0b1020" };
+// verde = padrão (branco com verde e detalhes amarelos); azul = modo escuro suave
+const THEMES = { verde: "#1f8a65", laranja: "#f97316", amarelo: "#f59e0b", azul: "#18263d" };
 function setTheme(theme) {
-  if (!THEMES[theme]) theme = "laranja";
+  if (theme === "dark") theme = "azul";
+  if (!THEMES[theme]) theme = "verde";
   document.body.dataset.theme = theme;
-  document.body.classList.toggle("theme-light", theme !== "dark");
+  document.body.classList.toggle("theme-light", theme !== "azul");
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEMES[theme]);
-  localStorage.setItem("nexus_theme_v2", theme);
+  localStorage.setItem("nexus_theme_v3", theme);
+  if (theme !== "azul") localStorage.setItem("nexus_light_theme", theme);
   $$("[data-theme-choice]").forEach(b => b.classList.toggle("active", b.dataset.themeChoice === theme));
+  const toggle = $("#themeToggle");
+  if (toggle) {
+    toggle.querySelector(".tt-icon").textContent = theme === "azul" ? "☀️" : "🌙";
+    toggle.querySelector(".tt-label").textContent = theme === "azul" ? "Modo claro" : "Modo azul";
+  }
 }
 $$("[data-theme-choice]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeChoice)));
-setTheme(localStorage.getItem("nexus_theme_v2") || "laranja");
+setTheme(localStorage.getItem("nexus_theme_v3") || "verde");
+$("#themeToggle").addEventListener("click", () => {
+  const current = document.body.dataset.theme;
+  setTheme(current === "azul" ? (localStorage.getItem("nexus_light_theme") || "verde") : "azul");
+});
 
 function showModal(mode) {
   authMode = mode;
@@ -124,21 +136,26 @@ function exitApp() {
 }
 $("#logoutBtn").addEventListener("click", () => exitApp());
 
+// Aviso do teste de 7 dias: conta os dias e volta a cada 24 h depois de fechado.
+// No último dia (e depois de vencer) não dá para fechar: o botão vira "Conhecer os planos".
 function renderTrialBanner() {
   const banner = $("#trialBanner"), text = banner.querySelector("span");
+  const closeBtn = $("#dismissTrial"), plansBtn = $("#bannerPlans");
   if (!currentCompany) { banner.classList.add("hidden"); return; }
   const code = currentCompany.server?.status?.code;
   if (code === "ativo" || code === "desativado") { banner.classList.add("hidden"); return; }
-  const hiddenAt = Number(localStorage.getItem(`nexus_banner_hidden_${currentCompany.empresa_id}`) || 0);
-  if (now() - hiddenAt < HIDE_MS) { banner.classList.add("hidden"); return; }
-  if (code === "pendente") {
-    text.innerHTML = "⚠️ Pagamento pendente: regularize seu plano para não ter o acesso suspenso.";
-    banner.classList.remove("hidden"); return;
-  }
   const remaining = currentCompany.trialEndsAt - now();
-  if (remaining <= 0) { text.innerHTML = "⚠️ Seu período de teste terminou. Escolha um plano para continuar."; banner.classList.remove("hidden"); return; }
-  const days = Math.max(1, Math.ceil(remaining / (24*60*60*1000)));
-  text.innerHTML = `⚠️ Você está no Teste Grátis: <strong id="daysRemaining">${days}</strong> ${days === 1 ? "dia restante" : "dias restantes"}.`;
+  const days = Math.max(0, Math.ceil(remaining / (24*60*60*1000)));
+  const locked = code === "pendente" || days <= 1;
+  closeBtn.classList.toggle("hidden", locked);
+  plansBtn.classList.toggle("hidden", !locked);
+  if (!locked) {
+    const hiddenAt = Number(localStorage.getItem(`nexus_banner_hidden_${currentCompany.empresa_id}`) || 0);
+    if (now() - hiddenAt < HIDE_MS) { banner.classList.add("hidden"); return; }
+  }
+  if (code === "pendente" || remaining <= 0) text.innerHTML = "⚠️ Seu teste grátis terminou. Escolha um plano para continuar usando o PDV.";
+  else if (days <= 1) text.innerHTML = "⏳ <strong>Último dia</strong> do seu teste grátis!";
+  else text.innerHTML = `⚠️ Teste grátis: restam <strong id="daysRemaining">${days}</strong> dias.`;
   banner.classList.remove("hidden");
 }
 $("#dismissTrial").addEventListener("click", () => {
@@ -150,7 +167,8 @@ $("#dismissTrial").addEventListener("click", () => {
 function showPanel(panel) {
   ["pos","products","admin"].forEach(name => $("#"+name+"Panel").classList.toggle("hidden", name !== panel));
   $$("[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === panel));
-  const titles = {pos:["OPERAÇÃO","Frente de caixa"],products:["ESTOQUE","Produtos e estoque"],admin:["CONFIGURAÇÕES","Painel administrativo"]};
+  const today = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+  const titles = {pos:[today.toUpperCase(), currentCompany?.storeName || "Frente de caixa"],products:["ESTOQUE","Produtos e estoque"],admin:["CONFIGURAÇÕES","Painel administrativo"]};
   $("#pageEyebrow").textContent = titles[panel][0]; $("#pageTitle").textContent = titles[panel][1];
   if (panel === "admin") { loadSecuritySettings(); loadHardwareSettings(); } // [NEXUS HW]
   if (panel === "pos") focusScanner(); // [NEXUS HW]
@@ -159,13 +177,38 @@ $$("[data-view]").forEach(b => b.addEventListener("click", () => showPanel(b.dat
 
 function renderProducts() {
   const term = ($("#productSearch")?.value || "").trim().toLowerCase();
-  const products = currentCompany.products.filter(p => (activeCategory === "Todos" || p.category === activeCategory) && `${p.name} ${p.code}`.toLowerCase().includes(term));
-  $("#productGrid").innerHTML = products.map(p => `<button class="product-tile" data-add-product="${p.id}"><span class="product-emoji">${p.emoji || "📦"}</span><b>${escapeHTML(p.name)}</b><small>${escapeHTML(p.category)} · ${p.stock} em estoque</small><strong>${money(p.price)}</strong></button>`).join("") || '<p class="empty-cart">Nenhum produto encontrado.</p>';
-  $$("[data-add-product]").forEach(b => b.addEventListener("click", () => addToCart(b.dataset.addProduct)));
+  const favs = new Set(currentCompany.favorites || []);
+  const products = currentCompany.products.filter(p =>
+    (activeCategory === "Todos" || (activeCategory === "Favoritos" ? favs.has(p.id) : p.category === activeCategory)) &&
+    `${p.name} ${p.code}`.toLowerCase().includes(term));
+  $("#productCount").textContent = `${products.length} ${products.length === 1 ? "produto" : "produtos"} · toque no card para adicionar`;
+  $("#productGrid").innerHTML = products.map(p => {
+    const stockClass = p.stock <= 0 ? "out" : p.stock < 10 ? "low" : "";
+    const stockText = p.stock <= 0 ? "Sem estoque" : `${p.stock} em estoque`;
+    return `<div class="product-card" data-card="${p.id}" role="button" tabindex="-1" aria-label="Adicionar ${escapeHTML(p.name)}">
+      <button class="fav-btn ${favs.has(p.id) ? "on" : ""}" type="button" data-fav="${p.id}" aria-label="Favoritar">${favs.has(p.id) ? "♥" : "♡"}</button>
+      <div class="product-media">${p.emoji || "📦"}</div>
+      <div class="product-row"><b>${escapeHTML(p.name)}</b><strong class="product-price">${money(p.price)}</strong></div>
+      <small class="product-code">${escapeHTML(p.category)}${p.code ? ` · ${escapeHTML(p.code)}` : ""}</small>
+      <div class="product-foot"><span class="stock-badge ${stockClass}">${stockText}</span><span class="add-btn">+ Adicionar</span></div>
+    </div>`;
+  }).join("") || '<p class="empty-cart">Nenhum produto encontrado.</p>';
+  $$("[data-card]").forEach(card => card.addEventListener("click", (e) => {
+    if (e.target.closest("[data-fav]")) return;
+    addToCart(card.dataset.card);
+    card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
+  }));
+  $$("[data-fav]").forEach(b => b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const set = new Set(currentCompany.favorites || []);
+    set.has(b.dataset.fav) ? set.delete(b.dataset.fav) : set.add(b.dataset.fav);
+    currentCompany.favorites = [...set];
+    await persist(); renderProducts();
+  }));
 }
 function escapeHTML(str) { return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 $("#productSearch").addEventListener("input", renderProducts);
-$$(".chip").forEach(b => b.addEventListener("click", () => { activeCategory = b.dataset.category; $$(".chip").forEach(x => x.classList.toggle("active", x === b)); renderProducts(); }));
+$$("#categoryChips .chip").forEach(b => b.addEventListener("click", () => { activeCategory = b.dataset.category; $$("#categoryChips .chip").forEach(x => x.classList.toggle("active", x === b)); renderProducts(); }));
 $("#productSearch").addEventListener("keydown", e => {
   if (e.key === "Enter") {
     const code = e.target.value.trim();
@@ -180,23 +223,59 @@ function addToCart(id) {
   if (line) line.qty++; else cart.push({ id, qty: 1 });
   updateCart();
 }
+// Desconto da venda atual (R$ ou %) e forma de pagamento escolhida no carrinho
+let cartDiscount = { type: "valor", value: 0 }, cartPay = "Dinheiro";
+function cartTotals() {
+  const items = cart.map(line => ({ ...line, product: currentCompany.products.find(p => p.id === line.id) })).filter(x => x.product);
+  const subtotal = items.reduce((n, x) => n + x.product.price * x.qty, 0);
+  let discount = cartDiscount.type === "pct" ? subtotal * cartDiscount.value / 100 : cartDiscount.value;
+  discount = Math.min(subtotal, Math.max(0, Math.round(discount * 100) / 100));
+  return { items, subtotal, discount, total: Math.round((subtotal - discount) * 100) / 100 };
+}
 function updateCart() {
   if (!currentCompany) return;
-  const items = cart.map(line => ({...line, product: currentCompany.products.find(p => p.id === line.id)})).filter(x => x.product);
+  const { items, subtotal, discount, total } = cartTotals();
   const count = items.reduce((n,x) => n+x.qty,0);
-  const total = items.reduce((n,x) => n+x.product.price*x.qty,0);
   $("#cartCount").textContent = `${count} ${count === 1 ? "item" : "itens"}`;
-  $("#subtotalValue").textContent = money(total); $("#totalValue").textContent = money(total);
+  $("#subtotalValue").textContent = money(subtotal);
+  $("#discountValue").textContent = discount > 0 ? `- ${money(discount)}` : money(0);
+  $("#discountBtn").textContent = discount > 0 ? (cartDiscount.type === "pct" ? `Desconto (${cartDiscount.value}%) ✎` : "Desconto ✎") : "＋ Desconto";
+  $("#totalValue").textContent = money(total);
   $("#checkoutBtn").disabled = !items.length;
   $("#reprintBtn").disabled = !currentCompany.sales?.length; // [NEXUS HW]
-  $("#cartItems").innerHTML = items.length ? items.map(x => `<div class="cart-item"><div class="cart-item-info"><b>${escapeHTML(x.product.name)}</b><small>${money(x.product.price)} · ${money(x.product.price*x.qty)}</small></div><div class="qty-control"><button data-qty="${x.id}" data-delta="-1">−</button><span>${x.qty}</span><button data-qty="${x.id}" data-delta="1">+</button></div></div>`).join("") : '<div class="empty-cart">Seu carrinho está vazio.<br><small>Adicione produtos para começar.</small></div>';
+  $$("#payChips [data-pay]").forEach(b => b.classList.toggle("active", b.dataset.pay === cartPay));
+  $("#cartItems").innerHTML = items.length ? items.map(x => `<div class="cart-item">
+      <span class="ci-thumb">${x.product.emoji || "📦"}</span>
+      <div class="cart-item-info"><b>${escapeHTML(x.product.name)}</b><small>${money(x.product.price)} un.</small><strong class="ci-total">${money(x.product.price*x.qty)}</strong></div>
+      <div class="qty-control"><div class="qrow"><button data-qty="${x.id}" data-delta="-1" aria-label="Diminuir">−</button><span>${x.qty}</span><button data-qty="${x.id}" data-delta="1" aria-label="Aumentar">+</button></div><button class="ci-remove" data-remove="${x.id}" type="button">Remover</button></div>
+    </div>`).join("") : '<div class="empty-cart">Seu carrinho está vazio.<br><small>Bipe ou toque em um produto.</small></div>';
   $$("[data-qty]").forEach(b => b.addEventListener("click", () => {
     const line = cart.find(x => x.id === b.dataset.qty); line.qty += Number(b.dataset.delta);
     if (line.qty <= 0) cart = cart.filter(x => x !== line);
+    if (!cart.length) cartDiscount = { type: "valor", value: 0 };
+    updateCart();
+  }));
+  $$("[data-remove]").forEach(b => b.addEventListener("click", () => {
+    cart = cart.filter(x => x.id !== b.dataset.remove);
+    if (!cart.length) cartDiscount = { type: "valor", value: 0 };
     updateCart();
   }));
 }
-$("#clearCart").addEventListener("click", () => { cart = []; updateCart(); });
+$$("#payChips [data-pay]").forEach(b => b.addEventListener("click", () => { cartPay = b.dataset.pay; updateCart(); }));
+$("#discountBtn").addEventListener("click", async () => {
+  if (!cart.length) { toast("Adicione produtos antes de dar desconto."); return; }
+  if (!await authorizeSensitiveAction("aplicar desconto")) return;
+  const raw = prompt("Desconto da venda:\n• em reais: 5,00\n• em porcentagem: 10%\nDeixe vazio para remover.", cartDiscount.value ? (cartDiscount.type === "pct" ? `${cartDiscount.value}%` : String(cartDiscount.value).replace(".", ",")) : "");
+  if (raw === null) return;
+  const text = raw.trim();
+  if (!text) { cartDiscount = { type: "valor", value: 0 }; updateCart(); return; }
+  const isPct = text.endsWith("%");
+  const value = Number(text.replace("%", "").replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(value) || value < 0 || (isPct && value > 100)) { toast("Desconto inválido."); return; }
+  cartDiscount = { type: isPct ? "pct" : "valor", value };
+  updateCart();
+});
+$("#clearCart").addEventListener("click", () => { cart = []; cartDiscount = { type: "valor", value: 0 }; updateCart(); });
 // [NEXUS HW] "Finalizar venda" abre o modal de pagamento/troco/impressão (ver finalizeSale no módulo de periféricos).
 $("#checkoutBtn").addEventListener("click", openCheckout);
 
@@ -445,10 +524,7 @@ $("#productForm").addEventListener("submit", async (e) => {
 
 // ---------- Finalização de venda: pagamento, troco e impressão ----------
 const selectedPay = () => $("input[name=payMethod]:checked")?.value || "Dinheiro";
-const cartTotal = () => cart.reduce((sum, line) => {
-  const p = currentCompany.products.find(x => x.id === line.id);
-  return sum + (p ? p.price * line.qty : 0);
-}, 0);
+const cartTotal = () => cartTotals().total;
 function updateChange() {
   const isCash = selectedPay() === "Dinheiro";
   $("#cashBox").classList.toggle("hidden", !isCash);
@@ -463,7 +539,8 @@ function openCheckout() {
   $("#cashReceived").value = "";
   $("#checkoutError").textContent = "";
   $("#printAfterSale").checked = true; // marcada por padrão
-  $('input[name=payMethod][value="Dinheiro"]').checked = true;
+  const payInput = $(`input[name=payMethod][value="${cartPay}"]`) || $('input[name=payMethod][value="Dinheiro"]');
+  payInput.checked = true;
   updateChange();
   $("#checkoutModal").classList.remove("hidden");
   setTimeout(() => $("#cashReceived").focus(), 30);
@@ -496,7 +573,7 @@ async function finalizeSale() {
     const p = currentCompany.products.find(x => x.id === line.productId);
     if (p.stock < line.qty) { errorEl.textContent = `Estoque insuficiente: ${p.name} (${p.stock} un.)`; return; }
   }
-  const total = items.reduce((s, x) => s + x.price * x.qty, 0);
+  const { subtotal, discount, total } = cartTotals();
   const payment = selectedPay();
   let received = total, change = 0;
   if (payment === "Dinheiro" && $("#cashReceived").value.trim()) {
@@ -509,10 +586,11 @@ async function finalizeSale() {
   try {
     items.forEach(line => { currentCompany.products.find(p => p.id === line.productId).stock -= line.qty; });
     currentCompany.saleSeq = (currentCompany.saleSeq ?? currentCompany.sales.length) + 1;
-    const sale = { id: crypto.randomUUID(), number: currentCompany.saleSeq, createdAt: now(), items, total, payment, received, change };
+    const sale = { id: crypto.randomUUID(), number: currentCompany.saleSeq, createdAt: now(), items, subtotal, discount, total, payment, received, change };
     currentCompany.sales.push(sale);
     await persist();
-    cart = []; renderProducts(); renderInventory(); updateCart();
+    cart = []; cartDiscount = { type: "valor", value: 0 }; cartPay = "Dinheiro";
+    renderProducts(); renderInventory(); updateCart();
     $("#checkoutModal").classList.add("hidden");
     toast(`Venda #${String(sale.number).padStart(6, "0")} de ${money(total)} registrada!${change > 0 ? ` Troco: ${money(change)}` : ""}`);
     if ($("#printAfterSale").checked) printReceipt(sale);
@@ -551,6 +629,7 @@ function receiptHTML(sale, cfg) {
     ${items}
     <div class="r-sep"></div>
     <div class="r-row r-small"><span>Qtd. itens</span><span>${count}</span></div>
+    ${sale.discount > 0 ? `<div class="r-row"><span>Subtotal</span><span>${money(sale.subtotal)}</span></div><div class="r-row"><span>Desconto</span><span>- ${money(sale.discount)}</span></div>` : ""}
     <div class="r-row r-total"><span>TOTAL</span><span>${money(sale.total)}</span></div>
     <div class="r-row"><span>Pagamento</span><span>${e(sale.payment || "Não informado")}</span></div>
     ${cash}
@@ -671,7 +750,8 @@ function newLocalCompany({ empresa_id, storeName, email, passwordHash }) {
 function applyServerStore(company, srv) {
   company.server = {
     status: srv.status, plan: srv.plan, planName: srv.planName, planExpiresAt: srv.planExpiresAt,
-    trialEndsAt: srv.trialEndsAt, mustChangePassword: Boolean(srv.mustChangePassword)
+    trialEndsAt: srv.trialEndsAt, mustChangePassword: Boolean(srv.mustChangePassword),
+    requestedPlan: srv.requestedPlan || null
   };
   company.trialEndsAt = srv.trialEndsAt;
 }
@@ -876,8 +956,34 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || location.
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(console.warn));
 }
 
-// ---------- Planos (página inicial) ----------
+// ---------- Planos (página inicial e dentro do app) ----------
 $$(".plan-btn").forEach(b => b.addEventListener("click", () => showModal("register")));
+function openPlansModal() {
+  const grid = $("#plansModalGrid");
+  grid.innerHTML = $(".pricing-grid").innerHTML;
+  const requested = currentCompany?.server?.requestedPlan;
+  grid.querySelectorAll(".plan-btn").forEach(btn => {
+    btn.textContent = "Quero este plano →";
+    btn.addEventListener("click", () => requestPlan(btn.dataset.plan));
+  });
+  if (requested) grid.insertAdjacentHTML("beforeend", `<p class="plan-requested">✓ Pedido enviado. Nossa equipe vai entrar em contato para ativar.</p>`);
+  $("#plansModal").classList.remove("hidden");
+}
+async function requestPlan(plan) {
+  const names = { basico: "Básico", completo: "Completo", premium: "Premium" };
+  if (!getToken()) { toast("Conecte-se à internet e entre de novo para pedir o plano."); return; }
+  const r = await api("plan-request", { body: { plan } });
+  if (!r.ok) { toast("Não foi possível enviar o pedido. Tente de novo."); return; }
+  if (currentCompany.server) currentCompany.server.requestedPlan = plan;
+  $("#plansModal").classList.add("hidden");
+  toast(`Pedido do plano ${names[plan]} enviado! Nossa equipe vai ativar o seu acesso.`);
+  focusScanner();
+}
+const closePlansModal = () => { $("#plansModal").classList.add("hidden"); focusScanner(); };
+$$("[data-close-plans]").forEach(b => b.addEventListener("click", closePlansModal));
+$("#plansModal").addEventListener("click", (e) => { if (e.target.id === "plansModal") closePlansModal(); });
+$("#bannerPlans").addEventListener("click", openPlansModal);
+$("#blockedPlans").addEventListener("click", openPlansModal);
 
 // ==========================================================================
 // Área Master
@@ -998,6 +1104,7 @@ function storeMatches(s) {
   if (term && !`${s.storeName} ${s.email}`.toLowerCase().includes(term)) return false;
   if (masterFilter === "todos") return true;
   if (masterFilter === "online") return s.online;
+  if (masterFilter === "pedidos") return Boolean(s.requestedPlan);
   return s.status.code === masterFilter;
 }
 function renderMasterStores() {
@@ -1015,6 +1122,7 @@ function renderMasterStores() {
       <div>
         <div class="store-head"><b>${escapeHTML(s.storeName)}</b>
           <span class="status-pill ${s.status.color}">${escapeHTML(s.status.label)}</span>
+          ${s.requestedPlan ? `<span class="request-tag">📩 Pediu ${escapeHTML(s.requestedPlanName || s.requestedPlan)} · ${fmtDate(s.requestedAt)}</span>` : ""}
           <span class="online-tag ${s.online ? "on" : ""}"><i class="dot ${s.online ? "green pulse-dot" : "gray"}"></i>${s.online ? "Caixa ligado" : "Offline"}</span>
         </div>
         <div class="store-meta">${escapeHTML(s.email)}<br>Cadastro em ${fmtDate(s.createdAt)} · ${validity}<br>${s.online ? "Usando agora" : seen}</div>
@@ -1034,7 +1142,7 @@ function renderMasterStores() {
   }).join("") : '<p class="empty-list">Nenhuma loja encontrada.</p>';
 
   // mantém o plano atual selecionado
-  list.forEach(s => { if (s.plan) { const sel = $(`[data-plan-for="${s.id}"]`); if (sel) sel.value = s.plan; } });
+  list.forEach(s => { const sel = $(`[data-plan-for="${s.id}"]`); if (sel && (s.requestedPlan || s.plan)) sel.value = s.requestedPlan || s.plan; });
   $$("[data-activate]").forEach(btn => btn.addEventListener("click", async () => {
     const id = btn.dataset.activate;
     const plan = $(`[data-plan-for="${id}"]`).value, days = Number($(`[data-period-for="${id}"]`).value);
@@ -1081,7 +1189,8 @@ $("#broadcastForm").addEventListener("submit", async (e) => {
 // [/NEXUS CLOUD]
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (!$("#masterLoginModal").classList.contains("hidden")) closeMasterLogin();
+  if (!$("#plansModal").classList.contains("hidden")) closePlansModal();
+  else if (!$("#masterLoginModal").classList.contains("hidden")) closeMasterLogin();
   else if (!$("#masterView").classList.contains("hidden")) closeMasterView();
 });
 

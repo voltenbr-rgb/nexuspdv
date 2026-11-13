@@ -16,8 +16,17 @@ Frente de caixa (PDV) para pequenos negócios, no Cloudflare Pages com banco D1 
 Depois do login, o app passa a se chamar **"PDV + nome da loja"** (ex.: *PDV Loja Eric*), no celular e no computador.
 No Android/Chrome aparece o botão **Instalar app**. No iPhone: Compartilhar → Adicionar à Tela de Início.
 
-## Tema
-Branco com laranja (padrão), branco com amarelo ou escuro: escolha em Configurações ADM → Aparência.
+## Temas
+- **Verde** (padrão): branco com verde e detalhes amarelos
+- **Laranja** e **Amarelo**: tons de caixa
+- **Modo azul**: escuro suave, alternado pelo botão 🌙 no topo do caixa
+
+Escolha em Configurações ADM → Aparência, ou nas bolinhas do topo da página inicial.
+
+## Caixa
+- Cards com preço em destaque, favoritos (♥), estoque por cor e botão Adicionar
+- Carrinho com miniaturas, quantidade, remover, desconto (R$ ou %, protegido pela senha de autorização) e forma de pagamento
+- Aviso do teste de 7 dias: mostra quantos dias restam e volta a cada 24 h depois de fechado. No último dia não dá para fechar, e o botão vira **Conhecer os planos**. O pedido de plano aparece na Área Master (filtro "Pedidos de plano").
 
 ## Área Master
 Botão redondo pequeno no rodapé, à direita.

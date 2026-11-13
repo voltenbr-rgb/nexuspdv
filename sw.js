@@ -1,5 +1,5 @@
 // Service worker do Nexus PDV: abre o caixa mesmo sem internet.
-const CACHE = "nexuspdv-v1";
+const CACHE = "nexuspdv-v2";
 const APP_SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/db.js", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

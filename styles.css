@@ -255,3 +255,124 @@ body.in-app .site-header{display:none}
 /* Celular: menu horizontal com todas as abas e o botão de sair */
 @media(max-width:620px){.sidebar .side-link:not(.active){display:flex}.sidebar-bottom{display:flex;margin:0 0 0 auto}.sidebar-bottom .offline-indicator{display:none}.sidebar .logout{padding:9px 11px}}
 .store-actions .row select{flex:1;min-width:0}
+
+/* ==========================================================================
+   [NEXUS THEME v2] Verde + branco com amarelo (padrão) e modo azul suave
+   ========================================================================== */
+body[data-theme=verde]{--bg:#f3f6f4;--surface:#ffffff;--surface2:#eef4f0;--surface3:#dcefe5;--text:#18261f;--muted:#66776f;--line:rgba(24,80,55,.11);--primary:#1f8a65;--primary2:#177454;--glow:rgba(31,138,101,.14);--good:#15803d;--danger:#dc2626;--shadow:0 18px 50px rgba(20,60,40,.09);--btn-from:#25a37a;--btn-to:#1a7d5c;--btn-text:#fff;--accent-soft:#e2f3ea;--grad-a:#1f8a65;--grad-b:#d9a300;--accent2:#f5b400;--accent2-soft:#fff6d6}
+body[data-theme=azul]{--bg:#18263d;--surface:#1f3150;--surface2:#263c5f;--surface3:#2f486f;--text:#edf3ff;--muted:#a8b9d6;--line:rgba(170,200,255,.14);--primary:#4f8cff;--primary2:#93bbff;--glow:rgba(79,140,255,.22);--good:#4ade80;--danger:#fb7185;--shadow:0 20px 60px rgba(5,12,30,.35);--btn-from:#5c9bff;--btn-to:#3a6fe2;--btn-text:#fff;--accent-soft:rgba(79,140,255,.16);--grad-a:#93bbff;--grad-b:#ffd46b;--accent2:#ffcf4d;--accent2-soft:rgba(255,207,77,.14)}
+body[data-theme=laranja]{--accent2:#f59e0b;--accent2-soft:#fef3c7}
+body[data-theme=amarelo]{--accent2:#eab308;--accent2-soft:#fef9c3}
+.theme-dot.verde,.theme-options i.verde{background:#1f8a65}.theme-dot.azul,.theme-options i.azul{background:#3a6fe2}
+/* modo azul: substitui as cores fixas escuras do tema antigo */
+body[data-theme=azul] .site-header{background:rgba(24,38,61,.88)}
+body[data-theme=azul] .gradient-text{background-image:linear-gradient(100deg,var(--grad-a),var(--grad-b))}
+body[data-theme=azul] .dashboard-window{background:linear-gradient(145deg,#24395c,#1c2d4a)}
+body[data-theme=azul] .toast{background:#0f1b2e}
+body[data-theme=azul] .modal-backdrop{background:rgba(8,15,30,.6)}
+body[data-theme=azul] .sidebar{background:var(--surface)}
+body[data-theme=azul] .side-link:hover,body[data-theme=azul] .side-link.active{background:var(--accent-soft)}
+body[data-theme=azul] .trial-banner{background:#ffd46b;color:#2a1f00}
+body[data-theme=azul] .status-pill.green{background:rgba(74,222,128,.16);color:#86efac}
+body[data-theme=azul] .status-pill.yellow{background:rgba(250,204,21,.16);color:#fde68a}
+body[data-theme=azul] .status-pill.red{background:rgba(251,113,133,.16);color:#fda4af}
+body[data-theme=azul] .bc-msg.aviso,body[data-theme=azul] .bc-msg.urgente{background:var(--surface)}
+body[data-theme=verde] .trial-banner{background:#fff1b8;color:#4a3800}
+body[data-theme=verde] .plan-badge{background:var(--accent2);color:#3a2a00}
+body.theme-light .modal-backdrop{background:rgba(20,35,28,.42)}
+body[data-theme=verde] .toast{background:#18261f}
+
+/* Botão alternar modo azul (topo do app) */
+.theme-toggle{display:flex;align-items:center;gap:7px;padding:7px 12px 7px 8px;border-radius:30px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:11px;font-weight:700}
+.theme-toggle .tt-icon{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);font-size:13px}
+.theme-toggle:hover{border-color:var(--primary)}
+
+/* Aviso do teste: no último dia não fecha, só mostra os planos */
+.banner-plans{border:0;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:800;background:#2b1f00;color:#fff}
+
+/* ---------- Caixa no estilo de cards ---------- */
+.catalog-head{align-items:flex-end}
+.catalog-head h2{font:800 20px Manrope,sans-serif!important;letter-spacing:-.4px}
+.search-box{display:flex;align-items:center;gap:8px;min-width:250px;padding:0 13px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--muted)}
+.search-box:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--glow)}
+.search-box input{flex:1;border:0;outline:0;background:transparent;color:var(--text);padding:11px 0;font-size:12px}
+.category-chips .chip{padding:8px 15px;font-size:11px;font-weight:600;border-radius:9px;background:var(--surface)}
+.category-chips .chip.active{background:var(--primary);border-color:var(--primary);color:var(--btn-text,#fff)}
+body[data-theme=amarelo] .category-chips .chip.active{color:#fff}
+.product-grid{grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:14px}
+.product-card{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:12px;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;user-select:none}
+.product-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px var(--glow);border-color:color-mix(in srgb,var(--primary) 45%,transparent)}
+.product-card:active{transform:scale(.98)}
+.product-card.flash{animation:cardFlash .45s ease}
+@keyframes cardFlash{0%{box-shadow:0 0 0 0 var(--primary)}100%{box-shadow:0 0 0 10px transparent}}
+.product-media{height:104px;border-radius:12px;display:grid;place-items:center;font-size:52px;background:radial-gradient(circle at 50% 60%,var(--surface),var(--surface2) 70%);margin-bottom:11px}
+.fav-btn{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:14px;line-height:1;display:grid;place-items:center;z-index:1}
+.fav-btn.on{color:#e11d48;border-color:rgba(225,29,72,.3);background:#fff1f2}
+body[data-theme=azul] .fav-btn.on{background:rgba(225,29,72,.15)}
+.product-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.product-row b{font-size:13px;line-height:1.3;font-weight:700}
+.product-price{font:800 15px Manrope,sans-serif;color:var(--primary2);white-space:nowrap}
+.product-code{display:block;font-size:10px;color:var(--muted);margin-top:4px}
+.product-foot{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:auto;padding-top:11px}
+.stock-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--muted)}
+.stock-badge:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--good)}
+.stock-badge.low{color:#b45309}.stock-badge.low:before{background:var(--accent2,#f59e0b)}
+.stock-badge.out{color:var(--danger)}.stock-badge.out:before{background:var(--danger)}
+.add-btn{border:0;border-radius:8px;padding:7px 10px;font-size:10px;font-weight:800;color:var(--btn-text,#fff);background:linear-gradient(135deg,var(--btn-from,var(--primary2)),var(--btn-to,var(--primary)));white-space:nowrap}
+
+/* Carrinho */
+.cart-panel{border-radius:18px;max-height:calc(100vh - 120px);position:sticky;top:16px}
+.cart-header h2{font:800 18px Manrope,sans-serif!important}
+.cart-items{padding:12px}
+.cart-item{gap:10px;padding:10px;margin-bottom:9px;border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.03)}
+.ci-thumb{width:42px;height:42px;flex-shrink:0;border-radius:11px;display:grid;place-items:center;font-size:23px;background:var(--surface2)}
+.cart-item-info b{font-size:12px!important}
+.cart-item-info small{font-size:10px!important}
+.ci-total{display:block;font:800 13px Manrope,sans-serif;color:var(--primary2);margin-top:3px}
+.qty-control{flex-direction:column;gap:4px}
+.qty-control .qrow{display:flex;align-items:center;gap:6px}
+.qty-control button{width:24px;height:24px;border-radius:50%!important;font-weight:800}
+.qty-control span{min-width:16px;text-align:center;font-weight:800;font-size:12px!important}
+.ci-remove{border:0;background:transparent;color:var(--muted);font-size:10px;padding:0}
+.ci-remove:hover{color:var(--danger)}
+.sum-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-bottom:9px}
+.sum-row b{color:var(--text)}
+.discount-value{color:var(--danger)!important}
+.link-btn{border:0;background:transparent;padding:0;font-size:12px;font-weight:700;color:var(--primary2)}
+.cart-footer .total-row{padding-top:12px;border-top:1px dashed var(--line);margin:4px 0 14px}
+.total-row strong{color:var(--primary2)!important;font-size:22px!important}
+.pay-title{font:700 13px Manrope,sans-serif;margin-bottom:8px}
+.pay-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.pay-chips button{padding:9px 2px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:10px;font-weight:700;white-space:nowrap}
+.pay-chips button.active{background:var(--text);border-color:var(--text);color:var(--surface)}
+.checkout-btn{padding:15px;font-size:14px;border-radius:12px}
+
+/* Planos dentro do app */
+#plansModal{z-index:95}
+.plans-modal-card{width:min(100%,980px);max-height:calc(100vh - 40px);overflow:auto}
+.pricing-grid.compact{margin-top:22px;gap:14px}
+.pricing-grid.compact .price-card{padding:22px 18px}
+.pricing-grid.compact .price strong{font-size:36px}
+.plan-requested{grid-column:1/-1;text-align:center;font-size:12px;color:var(--good);font-weight:700}
+
+/* Pedido de plano na Área Master */
+.request-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--accent2-soft,#fef3c7);color:#92400e}
+body[data-theme=azul] .request-tag{color:#fde68a}
+
+/* Botão Master: pequeno, redondo e discreto — no rodapé, à direita */
+.master-dot{width:11px;height:11px;border:0;background:var(--muted);opacity:.45;margin-left:8px;cursor:pointer}
+.master-dot:hover,.master-dot:focus-visible{opacity:1;background:var(--primary);transform:scale(1.3)}
+
+@media(max-width:900px){.cart-panel{position:static;max-height:none}}
+@media(max-width:620px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.product-media{height:80px;font-size:40px}.product-card{padding:9px}.fav-btn{top:12px;right:12px;width:26px;height:26px}.search-box{min-width:0;width:100%}.theme-toggle .tt-label{display:none}.theme-toggle{padding:5px}.pricing-grid.compact{grid-template-columns:1fr}}
+/* correções de acabamento */
+body .category-chips .chip.active,body.theme-light .category-chips .chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.qty-control .ci-remove{width:auto;height:auto;border:0!important;background:transparent!important;border-radius:0!important;font-size:10px;font-weight:600;color:var(--muted);padding:0}
+.qty-control .ci-remove:hover{color:var(--danger)}
+.product-grid{grid-template-columns:repeat(auto-fill,minmax(196px,1fr))}
+.product-row b{flex:1;min-width:0}
+.product-price{font-size:14px}
+@media(max-width:620px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.product-row{flex-direction:column;gap:2px}}
+body.theme-light .site-header{background:color-mix(in srgb,var(--bg) 90%,transparent)}
+.master-dot{width:12px;height:12px;opacity:.6}
+@media(max-width:620px){.catalog-head{align-items:stretch}.catalog-head>div{text-align:left}}

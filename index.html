@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#f97316" />
+  <meta name="theme-color" content="#1f8a65" />
   <title>Nexus PDV — Frente de caixa simples e inteligente</title>
   <!-- App instalável (PWA): o nome muda para "PDV + nome da loja" depois do login -->
   <link rel="manifest" id="manifestLink" href="/api/manifest" />
@@ -20,10 +20,10 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body data-theme="laranja" class="theme-light">
+<body data-theme="verde" class="theme-light">
   <div id="trialBanner" class="trial-banner hidden">
     <span>⚠️ Você está no Teste Grátis: <strong id="daysRemaining">7</strong> dias restantes.</span>
-    <button id="dismissTrial" class="banner-close" aria-label="Fechar aviso">Fechar ×</button>
+    <button id="dismissTrial" class="banner-close" aria-label="Fechar aviso">Fechar ×</button><button id="bannerPlans" class="banner-plans hidden" type="button">Conhecer os planos →</button>
   </div>
 
   <header class="site-header">
@@ -35,9 +35,10 @@
     </nav>
     <div class="header-actions">
       <div class="theme-picker" aria-label="Escolher tema">
-        <button class="theme-dot laranja active" data-theme-choice="laranja" title="Caixa laranja"></button>
-        <button class="theme-dot amarelo" data-theme-choice="amarelo" title="Caixa amarelo"></button>
-        <button class="theme-dot escuro" data-theme-choice="dark" title="Escuro"></button>
+        <button class="theme-dot verde active" data-theme-choice="verde" title="Verde (padrão)"></button>
+        <button class="theme-dot laranja" data-theme-choice="laranja" title="Laranja"></button>
+        <button class="theme-dot amarelo" data-theme-choice="amarelo" title="Amarelo"></button>
+        <button class="theme-dot azul" data-theme-choice="azul" title="Modo azul"></button>
       </div>
       <button class="btn btn-ghost" id="openLogin">Entrar</button>
       <button class="btn btn-primary" id="openTrial">Teste grátis <span>7 dias</span></button>
@@ -133,7 +134,7 @@
       <div class="sidebar-bottom"><div class="offline-indicator"><i></i><span>Dados salvos neste dispositivo</span></div><button id="logoutBtn" class="side-link logout"><span>↪</span> Sair da conta</button></div>
     </aside>
     <section class="app-main">
-      <header class="app-topbar"><div><small id="pageEyebrow">OPERAÇÃO</small><h1 id="pageTitle">Frente de caixa</h1></div><div class="topbar-right"><button id="installAppBtn" class="btn btn-secondary install-btn hidden" type="button">⬇ Instalar app</button><span id="connectionPill" class="connection-pill"><i></i> <span>Modo local</span></span><div class="avatar" id="storeAvatar">ML</div></div></header>
+      <header class="app-topbar"><div><small id="pageEyebrow">OPERAÇÃO</small><h1 id="pageTitle">Frente de caixa</h1></div><div class="topbar-right"><button id="themeToggle" class="theme-toggle" type="button" aria-label="Alternar modo azul"><span class="tt-icon">🌙</span><span class="tt-label">Modo azul</span></button><button id="installAppBtn" class="btn btn-secondary install-btn hidden" type="button">⬇ Instalar app</button><span id="connectionPill" class="connection-pill"><i></i> <span>Modo local</span></span><div class="avatar" id="storeAvatar">ML</div></div></header>
       <div id="broadcastArea" class="broadcast-area"></div>
       <section id="posPanel" class="app-panel">
         <!-- [NEXUS HW] Leitor de código de barras USB (bipador) -->
@@ -151,13 +152,27 @@
           <button id="scannerAlertClose" class="scanner-alert-x" type="button" aria-label="Fechar aviso">×</button>
         </div>
         <!-- [/NEXUS HW] -->
-        <div class="pos-layout"><div class="catalog-area"><div class="panel-toolbar"><div><h2>Produtos</h2><p>Selecione um item para adicionar à venda.</p></div><input id="productSearch" class="search-input" placeholder="⌕  Buscar ou bipar código..." autocomplete="off"></div><div id="categoryChips" class="category-chips"><button class="chip active" data-category="Todos">Todos</button><button class="chip" data-category="Mercearia">Mercearia</button><button class="chip" data-category="Bebidas">Bebidas</button><button class="chip" data-category="Limpeza">Limpeza</button></div><div id="productGrid" class="product-grid"></div></div>
-          <aside class="cart-panel"><div class="cart-header"><div><h2>Venda atual</h2><p id="cartCount">0 itens</p></div><button id="clearCart" class="text-button">Limpar</button></div><div id="cartItems" class="cart-items"><div class="empty-cart">Seu carrinho está vazio.<br><small>Adicione produtos para começar.</small></div></div><div class="cart-footer"><div class="subtotal-row"><span>Subtotal</span><b id="subtotalValue">R$ 0,00</b></div><div class="total-row"><span>Total</span><strong id="totalValue">R$ 0,00</strong></div><button id="checkoutBtn" class="btn btn-primary checkout-btn" disabled>Finalizar venda <span>F4 →</span></button><!-- [NEXUS HW] --><button id="reprintBtn" class="btn btn-secondary reprint-btn" type="button" disabled>🖨 Reimprimir último recibo</button><!-- [/NEXUS HW] --><small class="cart-note">A venda de demonstração é salva localmente.</small></div></aside>
+        <div class="pos-layout"><div class="catalog-area"><div class="panel-toolbar catalog-head"><div><h2>Encontre o produto</h2><p id="productCount">Toque no card para adicionar à venda.</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="productSearch" placeholder="Buscar por nome ou código..." autocomplete="off"></label></div><div id="categoryChips" class="category-chips"><button class="chip active" data-category="Todos">Todos</button><button class="chip" data-category="Favoritos">♥ Favoritos</button><button class="chip" data-category="Mercearia">Mercearia</button><button class="chip" data-category="Bebidas">Bebidas</button><button class="chip" data-category="Limpeza">Limpeza</button></div><div id="productGrid" class="product-grid"></div></div>
+          <aside class="cart-panel">
+            <div class="cart-header"><div><h2>Venda atual</h2><p id="cartCount">0 itens</p></div><button id="clearCart" class="text-button" type="button">🗑 Limpar</button></div>
+            <div id="cartItems" class="cart-items"><div class="empty-cart">Seu carrinho está vazio.<br><small>Bipe ou toque em um produto.</small></div></div>
+            <div class="cart-footer">
+              <div class="sum-row"><span>Subtotal</span><b id="subtotalValue">R$ 0,00</b></div>
+              <div class="sum-row"><button id="discountBtn" class="link-btn" type="button">＋ Desconto</button><b id="discountValue" class="discount-value">R$ 0,00</b></div>
+              <div class="total-row"><span>Total</span><strong id="totalValue">R$ 0,00</strong></div>
+              <div class="pay-title">Pagamento</div>
+              <div class="pay-chips" id="payChips">
+                <button type="button" class="active" data-pay="Dinheiro">💵 Dinheiro</button><button type="button" data-pay="Pix">⚡ Pix</button><button type="button" data-pay="Cartão de débito">💳 Débito</button><button type="button" data-pay="Cartão de crédito">💳 Crédito</button>
+              </div>
+              <button id="checkoutBtn" class="btn btn-primary checkout-btn" disabled>Finalizar venda <span>F4 →</span></button>
+              <button id="reprintBtn" class="btn btn-secondary reprint-btn" type="button" disabled>🖨 Reimprimir último recibo</button>
+            </div>
+          </aside>
         </div>
       </section>
       <section id="productsPanel" class="app-panel hidden"><div class="panel-toolbar"><div><h2>Produtos e estoque</h2><p>Gerencie os itens cadastrados na sua loja.</p></div><button id="addProductBtn" class="btn btn-primary">＋ Novo produto</button></div><div class="table-wrap"><table><thead><tr><th>PRODUTO</th><th>CATEGORIA</th><th>CÓDIGO</th><th>PREÇO</th><th>ESTOQUE</th><th>AÇÕES</th></tr></thead><tbody id="inventoryTable"></tbody></table></div></section>
       <section id="adminPanel" class="app-panel hidden"><div class="settings-grid"><div class="settings-intro"><div class="eyebrow">CONTROLE DA LOJA</div><h2>Configurações<br>administrativas.</h2><p>Defina como sua equipe acessa operações sensíveis e personalize a experiência.</p></div><div class="settings-card"><div class="settings-card-head"><span class="settings-icon">⌑</span><div><h3>Proteção de estoque</h3><p>Exija uma senha mestre para alterações sensíveis.</p></div></div><label class="toggle-line"><span><b>Ativar senha de autorização</b><small>Protege alteração de preço, exclusão e ações administrativas.</small></span><input type="checkbox" id="stockProtectionToggle"><i class="toggle"></i></label><div id="passwordSettings" class="password-settings"><label for="masterPassword">Senha mestre</label><input id="masterPassword" type="password" placeholder="Mínimo de 4 caracteres"><label for="masterPasswordConfirm">Confirmar senha</label><input id="masterPasswordConfirm" type="password" placeholder="Repita a senha"><button id="saveSecurityBtn" class="btn btn-primary">Salvar proteção</button><small id="securityStatus" class="status-text"></small></div><div class="security-footnote">Este protótipo guarda a configuração apenas neste navegador. Em produção, valide permissões e senhas no servidor.</div></div>
-        <div class="settings-card appearance-card"><div class="settings-card-head"><span class="settings-icon">◐</span><div><h3>Aparência do sistema</h3><p>Escolha a paleta que combina com sua loja.</p></div></div><div class="theme-options"><button data-theme-choice="laranja"><i class="laranja"></i><span>Caixa laranja</span></button><button data-theme-choice="amarelo"><i class="amarelo"></i><span>Caixa amarelo</span></button><button data-theme-choice="dark"><i class="escuro"></i><span>Escuro</span></button></div></div>
+        <div class="settings-card appearance-card"><div class="settings-card-head"><span class="settings-icon">◐</span><div><h3>Aparência do sistema</h3><p>Escolha a paleta que combina com sua loja.</p></div></div><div class="theme-options"><button data-theme-choice="verde"><i class="verde"></i><span>Verde (padrão)</span></button><button data-theme-choice="laranja"><i class="laranja"></i><span>Laranja</span></button><button data-theme-choice="amarelo"><i class="amarelo"></i><span>Amarelo</span></button><button data-theme-choice="azul"><i class="azul"></i><span>Modo azul</span></button></div></div>
         <!-- [NEXUS HW] Configuração de Hardware (PDV) -->
         <div class="settings-card hardware-card"><div class="settings-card-head"><span class="settings-icon">🖨</span><div><h3>Configuração de Hardware (PDV)</h3><p>Impressora térmica de recibos e leitor de código de barras.</p></div></div>
           <div class="hw-layout">
@@ -199,8 +214,11 @@
     <form id="passwordForm"><label for="newPass1">Nova senha</label><input id="newPass1" type="password" minlength="4" required autocomplete="new-password"><label for="newPass2">Confirmar nova senha</label><input id="newPass2" type="password" minlength="4" required autocomplete="new-password"><div id="passwordFormError" class="form-error"></div><button class="btn btn-primary modal-submit" type="submit">Salvar nova senha →</button></form>
   </div></div>
 
+  <!-- Planos dentro do app -->
+  <div id="plansModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="plansModalTitle"><div class="modal-card plans-modal-card"><button class="modal-x" data-close-plans>×</button><div class="eyebrow">PLANOS</div><h2 id="plansModalTitle">Continue vendendo sem parar.</h2><p>Escolha um plano. Nossa equipe recebe o seu pedido e ativa o seu acesso.</p><div id="plansModalGrid" class="pricing-grid compact"></div></div></div>
+
   <!-- Acesso suspenso -->
-  <div id="blockedOverlay" class="blocked-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="blockedTitle"><div class="blocked-card"><div class="blocked-icon">🔒</div><h2 id="blockedTitle">Acesso suspenso</h2><p id="blockedText">Sua assinatura está vencida. Fale com o suporte para reativar o seu PDV.</p><small>Seus produtos e vendas continuam guardados neste aparelho.</small><button id="blockedLogout" class="btn btn-secondary" type="button">Sair da conta</button></div></div>
+  <div id="blockedOverlay" class="blocked-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="blockedTitle"><div class="blocked-card"><div class="blocked-icon">🔒</div><h2 id="blockedTitle">Acesso suspenso</h2><p id="blockedText">Sua assinatura está vencida. Fale com o suporte para reativar o seu PDV.</p><small>Seus produtos e vendas continuam guardados neste aparelho.</small><button id="blockedPlans" class="btn btn-primary" type="button">Conhecer os planos</button> <button id="blockedLogout" class="btn btn-secondary" type="button">Sair da conta</button></div></div>
 
   <!-- Área Master: login -->
   <div id="masterLoginModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="masterLoginTitle"><div class="modal-card"><button class="modal-x" data-close-master-login>×</button><div class="eyebrow">ÁREA RESTRITA</div><h2 id="masterLoginTitle">Área Master</h2><p id="masterLoginDesc">Digite a senha master.</p>
@@ -241,7 +259,7 @@
       <div class="master-card master-stores">
         <div class="stores-toolbar"><h3>🏪 Lojas cadastradas</h3><input id="masterSearch" class="search-input" placeholder="Buscar por loja ou e-mail..."></div>
         <div id="masterFilters" class="category-chips">
-          <button class="chip active" data-mfilter="todos">Todos</button><button class="chip" data-mfilter="online">🟢 Caixa ligado</button><button class="chip" data-mfilter="teste">Em teste</button><button class="chip" data-mfilter="ativo">Ativos</button><button class="chip" data-mfilter="pendente">Pendentes</button><button class="chip" data-mfilter="desativado">Desativados</button>
+          <button class="chip active" data-mfilter="todos">Todos</button><button class="chip" data-mfilter="online">🟢 Caixa ligado</button><button class="chip" data-mfilter="teste">Em teste</button><button class="chip" data-mfilter="ativo">Ativos</button><button class="chip" data-mfilter="pendente">Pendentes</button><button class="chip" data-mfilter="desativado">Desativados</button><button class="chip" data-mfilter="pedidos">📩 Pedidos de plano</button>
         </div>
         <div id="masterStores" class="store-list"></div>
       </div>

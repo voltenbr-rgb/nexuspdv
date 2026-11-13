@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS stores (
   blocked INTEGER NOT NULL DEFAULT 0,          -- desativado manualmente pela Área Master
   must_change_password INTEGER NOT NULL DEFAULT 0,
   last_seen_at INTEGER,
-  cashier_open INTEGER NOT NULL DEFAULT 0
+  cashier_open INTEGER NOT NULL DEFAULT 0,
+  requested_plan TEXT,                         -- plano que o cliente pediu pelo app
+  requested_at INTEGER
 );
 
 -- Sessões de login (guardamos só o hash do token).

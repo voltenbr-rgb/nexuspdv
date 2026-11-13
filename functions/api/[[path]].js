@@ -95,12 +95,14 @@ function publicStore(s, now = Date.now()) {
     id: s.id, storeName: s.store_name, email: s.email, createdAt: s.created_at,
     trialEndsAt: s.trial_ends_at, plan: s.plan, planName: s.plan ? PLANS[s.plan]?.name : null,
     planExpiresAt: s.plan_expires_at, status: storeStatus(s, now),
-    mustChangePassword: Boolean(s.must_change_password)
+    mustChangePassword: Boolean(s.must_change_password),
+    requestedPlan: s.requested_plan || null
   };
 }
 function masterStore(s, now = Date.now()) {
   return {
     ...publicStore(s, now), blocked: Boolean(s.blocked), lastSeenAt: s.last_seen_at,
+    requestedPlan: s.requested_plan || null, requestedPlanName: s.requested_plan ? PLANS[s.requested_plan]?.name : null, requestedAt: s.requested_at || null,
     online: Boolean(s.cashier_open) && (now - (s.last_seen_at || 0) < ONLINE_WINDOW)
   };
 }
@@ -233,6 +235,16 @@ route("POST", /^heartbeat$/, async ({ db, request, body }) => {
   return json({ store: publicStore(store, now), broadcasts: await activeBroadcasts(db), serverTime: now });
 });
 
+// Cliente pede um plano pelo app (aparece na Área Master)
+route("POST", /^plan-request$/, async ({ db, request, body }) => {
+  const { store } = await requireStore(db, request, body);
+  const plan = String(body.plan || "");
+  if (!PLANS[plan]) fail(400, "invalid_plan");
+  await db.prepare("UPDATE stores SET requested_plan = ?, requested_at = ? WHERE id = ?").bind(plan, Date.now(), store.id).run();
+  await logEvent(db, store.id, "pedido_plano", PLANS[plan].name);
+  return json({ ok: true });
+});
+
 // ----- Área Master -----
 route("GET", /^master\/status$/, async ({ db, env }) => json({ configured: await masterConfigured(env, db) }));
 
@@ -280,8 +292,8 @@ route("GET", /^master\/overview$/, async ({ db, request, body }) => {
   const now = Date.now();
   const { results } = await db.prepare("SELECT * FROM stores ORDER BY created_at DESC LIMIT 1000").all();
   const stores = results.map(s => masterStore(s, now));
-  const kpis = { total: stores.length, online: 0, teste: 0, ativo: 0, pendente: 0, desativado: 0 };
-  stores.forEach(s => { kpis[s.status.code]++; if (s.online) kpis.online++; });
+  const kpis = { total: stores.length, online: 0, teste: 0, ativo: 0, pendente: 0, desativado: 0, pedidos: 0 };
+  stores.forEach(s => { kpis[s.status.code]++; if (s.online) kpis.online++; if (s.requestedPlan) kpis.pedidos++; });
   const { results: msgs } = await db.prepare("SELECT * FROM broadcasts WHERE active = 1 ORDER BY id DESC LIMIT 50").all();
   return json({
     kpis, stores, serverTime: now, plans: PLANS, periods: PERIODS,
@@ -300,7 +312,7 @@ route("POST", /^master\/stores\/(emp_[a-f0-9]{16})\/plan$/, async ({ db, request
   const now = Date.now();
   const base = store.plan_expires_at && store.plan_expires_at > now ? store.plan_expires_at : now;
   const expires = base + days * DAY;
-  await db.prepare("UPDATE stores SET plan = ?, plan_expires_at = ?, blocked = 0 WHERE id = ?").bind(plan, expires, store.id).run();
+  await db.prepare("UPDATE stores SET plan = ?, plan_expires_at = ?, blocked = 0, requested_plan = NULL, requested_at = NULL WHERE id = ?").bind(plan, expires, store.id).run();
   await logEvent(db, store.id, "plano", `${PLANS[plan].name} +${days} dias`);
   const updated = await db.prepare("SELECT * FROM stores WHERE id = ?").bind(store.id).first();
   return json({ store: masterStore(updated) });
