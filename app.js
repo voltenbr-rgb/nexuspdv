@@ -24,21 +24,21 @@ function toast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2800);
 }
 // [NEXUS THEME] tema de caixa: laranja (padrão), amarelo ou escuro
-// verde = padrão (branco com verde e detalhes amarelos); azul = modo escuro suave
-const THEMES = { verde: "#1f8a65", laranja: "#f97316", amarelo: "#f59e0b", azul: "#18263d" };
+// verde = padrão (branco com verde e detalhes amarelos); azul = branco com azul
+const THEMES = { verde: "#1f8a65", laranja: "#f97316", amarelo: "#f59e0b", azul: "#1e40af" };
 function setTheme(theme) {
   if (theme === "dark") theme = "azul";
   if (!THEMES[theme]) theme = "verde";
   document.body.dataset.theme = theme;
-  document.body.classList.toggle("theme-light", theme !== "azul");
+  document.body.classList.add("theme-light"); // todos os temas são claros (o azul mescla branco e azul)
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEMES[theme]);
   localStorage.setItem("nexus_theme_v3", theme);
   if (theme !== "azul") localStorage.setItem("nexus_light_theme", theme);
   $$("[data-theme-choice]").forEach(b => b.classList.toggle("active", b.dataset.themeChoice === theme));
   const toggle = $("#themeToggle");
   if (toggle) {
-    toggle.querySelector(".tt-icon").textContent = theme === "azul" ? "☀️" : "🌙";
-    toggle.querySelector(".tt-label").textContent = theme === "azul" ? "Modo claro" : "Modo azul";
+    toggle.querySelector(".tt-icon").textContent = theme === "azul" ? "🌿" : "🔵";
+    toggle.querySelector(".tt-label").textContent = theme === "azul" ? "Tema padrão" : "Modo azul";
   }
 }
 $$("[data-theme-choice]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeChoice)));
@@ -127,7 +127,7 @@ function exitApp() {
   if (token) api("auth/logout", { token }).catch(() => {});
   clearToken();
   localStorage.removeItem("nexus_current_company");
-  currentCompany = null; cart = [];
+  currentCompany = null; cart = []; admUnlocked = false;
   applyBranding("");
   $("#broadcastArea").innerHTML = "";
   $("#blockedOverlay").classList.add("hidden");
@@ -172,7 +172,8 @@ function showPanel(panel) {
   const today = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
   const titles = {pos:[today.toUpperCase(), currentCompany?.storeName || "Frente de caixa"],products:["ESTOQUE","Produtos e estoque"],admin:["CONFIGURAÇÕES","Painel administrativo"]};
   $("#pageEyebrow").textContent = titles[panel][0]; $("#pageTitle").textContent = titles[panel][1];
-  if (panel === "admin") { loadSecuritySettings(); loadHardwareSettings(); } // [NEXUS HW]
+  if (panel !== "admin") admUnlocked = false;   // saiu do ADM: tranca de novo
+  if (panel === "admin") { renderAdminGate(); if (admUnlocked) { loadSecuritySettings(); loadHardwareSettings(); } }
   if (panel === "pos") focusScanner(); // [NEXUS HW]
 }
 $$("[data-view]").forEach(b => b.addEventListener("click", () => showPanel(b.dataset.view)));
@@ -184,6 +185,8 @@ function renderProducts() {
     (activeCategory === "Todos" || (activeCategory === "Favoritos" ? favs.has(p.id) : p.category === activeCategory)) &&
     `${p.name} ${p.code}`.toLowerCase().includes(term));
   $("#productCount").textContent = `${products.length} ${products.length === 1 ? "produto" : "produtos"} · toque no card para adicionar`;
+  $("#productsTitle").textContent = activeCategory === "Todos" ? "Todos os produtos" : activeCategory === "Favoritos" ? "♥ Favoritos" : activeCategory;
+  renderCategories(); renderTopSellers();
   $("#productGrid").innerHTML = products.map(p => {
     const stockClass = p.stock <= 0 ? "out" : p.stock < 10 ? "low" : "";
     const stockText = p.stock <= 0 ? "Sem estoque" : `${p.stock} em estoque`;
@@ -210,7 +213,40 @@ function renderProducts() {
 }
 function escapeHTML(str) { return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 $("#productSearch").addEventListener("input", renderProducts);
-$$("#categoryChips .chip").forEach(b => b.addEventListener("click", () => { activeCategory = b.dataset.category; $$("#categoryChips .chip").forEach(x => x.classList.toggle("active", x === b)); renderProducts(); }));
+// Coluna de categorias (montada a partir dos produtos cadastrados)
+const CATEGORY_ICONS = { Todos: "🏪", Favoritos: "♥", Mercearia: "🛒", Bebidas: "🥤", Limpeza: "🧽", Padaria: "🥖", Hortifruti: "🥬", Frios: "🧀", Açougue: "🥩", Higiene: "🧴", Bazar: "🧺", Tabacaria: "🚬" };
+function renderCategories() {
+  const counts = {};
+  currentCompany.products.forEach(p => { counts[p.category || "Outros"] = (counts[p.category || "Outros"] || 0) + 1; });
+  const favCount = (currentCompany.favorites || []).filter(id => currentCompany.products.some(p => p.id === id)).length;
+  const cats = [["Todos", currentCompany.products.length], ["Favoritos", favCount], ...Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))];
+  if (!cats.some(([c]) => c === activeCategory)) activeCategory = "Todos";
+  $("#categoryList").innerHTML = cats.map(([c, n]) => `<button type="button" class="cat-item ${c === activeCategory ? "active" : ""}" data-cat="${escapeHTML(c)}">
+      <span class="cat-ico">${CATEGORY_ICONS[c] || "🏷️"}</span><span class="cat-name">${escapeHTML(c)}</span><span class="cat-count">${n}</span></button>`).join("");
+  $$("[data-cat]").forEach(b => b.addEventListener("click", () => {
+    activeCategory = b.dataset.cat;
+    $(".col-products")?.scrollTo({ top: 0 });
+    renderProducts();
+  }));
+}
+// Coluna dos mais vendidos (a partir das vendas); sem vendas ainda, mostra sugestões
+function renderTopSellers() {
+  const sold = {};
+  (currentCompany.sales || []).forEach(s => (s.items || []).forEach(it => { if (it.productId) sold[it.productId] = (sold[it.productId] || 0) + Number(it.qty || 0); }));
+  const ranked = Object.entries(sold).map(([id, qty]) => ({ p: currentCompany.products.find(x => x.id === id), qty })).filter(x => x.p).sort((a, b) => b.qty - a.qty).slice(0, 15);
+  const hasSales = ranked.length > 0;
+  const list = hasSales ? ranked : currentCompany.products.slice(0, 10).map(p => ({ p, qty: 0 }));
+  $("#topTitle").textContent = hasSales ? "🔥 Mais vendidos" : "⭐ Sugestões";
+  $("#topSellers").innerHTML = (hasSales ? "" : '<p class="top-hint">Ainda sem vendas. Os campeões de venda aparecem aqui sozinhos.</p>') +
+    list.map(({ p, qty }, i) => `<button type="button" class="top-item" data-top="${p.id}">
+      <span class="ti-rank">${i + 1}</span><span class="ti-emoji">${p.emoji || "📦"}</span>
+      <span class="ti-name">${escapeHTML(p.name)}</span>
+      <span class="ti-meta"><span>${hasSales ? `${qty} vendido${qty === 1 ? "" : "s"}` : escapeHTML(p.category || "")}</span><strong>${money(p.price)}</strong></span></button>`).join("");
+  $$("[data-top]").forEach(b => b.addEventListener("click", () => {
+    addToCart(b.dataset.top);
+    b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash");
+  }));
+}
 $("#productSearch").addEventListener("keydown", e => {
   if (e.key === "Enter") {
     const code = e.target.value.trim();
@@ -251,13 +287,16 @@ function updateCart() {
       <div class="cart-item-info"><b>${escapeHTML(x.product.name)}</b><small>${money(x.product.price)} un.</small><strong class="ci-total">${money(x.product.price*x.qty)}</strong></div>
       <div class="qty-control"><div class="qrow"><button data-qty="${x.id}" data-delta="-1" aria-label="Diminuir">−</button><span>${x.qty}</span><button data-qty="${x.id}" data-delta="1" aria-label="Aumentar">+</button></div><button class="ci-remove" data-remove="${x.id}" type="button">Remover</button></div>
     </div>`).join("") : '<div class="empty-cart">Seu carrinho está vazio.<br><small>Bipe ou toque em um produto.</small></div>';
-  $$("[data-qty]").forEach(b => b.addEventListener("click", () => {
-    const line = cart.find(x => x.id === b.dataset.qty); line.qty += Number(b.dataset.delta);
+  $$("[data-qty]").forEach(b => b.addEventListener("click", async () => {
+    if (Number(b.dataset.delta) < 0 && !await authorize("removeItem")) return;
+    const line = cart.find(x => x.id === b.dataset.qty); if (!line) return;
+    line.qty += Number(b.dataset.delta);
     if (line.qty <= 0) cart = cart.filter(x => x !== line);
     if (!cart.length) cartDiscount = { type: "valor", value: 0 };
     updateCart();
   }));
-  $$("[data-remove]").forEach(b => b.addEventListener("click", () => {
+  $$("[data-remove]").forEach(b => b.addEventListener("click", async () => {
+    if (!await authorize("removeItem")) return;
     cart = cart.filter(x => x.id !== b.dataset.remove);
     if (!cart.length) cartDiscount = { type: "valor", value: 0 };
     updateCart();
@@ -266,7 +305,7 @@ function updateCart() {
 $$("#payChips [data-pay]").forEach(b => b.addEventListener("click", () => { cartPay = b.dataset.pay; updateCart(); }));
 $("#discountBtn").addEventListener("click", async () => {
   if (!cart.length) { toast("Adicione produtos antes de dar desconto."); return; }
-  if (!await authorizeSensitiveAction("aplicar desconto")) return;
+  if (!await authorize("discount")) return;
   const raw = prompt("Desconto da venda:\n• em reais: 5,00\n• em porcentagem: 10%\nDeixe vazio para remover.", cartDiscount.value ? (cartDiscount.type === "pct" ? `${cartDiscount.value}%` : String(cartDiscount.value).replace(".", ",")) : "");
   if (raw === null) return;
   const text = raw.trim();
@@ -277,7 +316,7 @@ $("#discountBtn").addEventListener("click", async () => {
   cartDiscount = { type: isPct ? "pct" : "valor", value };
   updateCart();
 });
-$("#clearCart").addEventListener("click", () => { cart = []; cartDiscount = { type: "valor", value: 0 }; updateCart(); });
+$("#clearCart").addEventListener("click", async () => { if (!cart.length || !await authorize("removeItem")) return; cart = []; cartDiscount = { type: "valor", value: 0 }; updateCart(); });
 // [NEXUS HW] "Finalizar venda" abre o modal de pagamento/troco/impressão (ver finalizeSale no módulo de periféricos).
 $("#checkoutBtn").addEventListener("click", openCheckout);
 
@@ -286,16 +325,8 @@ function renderInventory() {
   $$("[data-edit]").forEach(b => b.addEventListener("click", () => editProduct(b.dataset.edit)));
   $$("[data-delete]").forEach(b => b.addEventListener("click", () => deleteProduct(b.dataset.delete)));
 }
-async function authorizeSensitiveAction(action) {
-  if (!currentCompany.security?.enabled) return true;
-  const password = prompt(`Autorização necessária para: ${action}\nDigite a senha mestre:`);
-  if (password === null) return false;
-  const hash = await hashDemoPassword(password);
-  if (hash !== currentCompany.security.passwordHash) { toast("Senha mestre incorreta."); return false; }
-  return true;
-}
 async function editProduct(id) {
-  if (!await authorizeSensitiveAction("alterar preço/estoque")) return;
+  if (!await authorize("editProduct")) return;
   const p = currentCompany.products.find(x => x.id === id);
   const price = prompt(`Novo preço para ${p.name}:`, p.price);
   if (price === null) return;
@@ -309,7 +340,7 @@ async function editProduct(id) {
   await recordProduct(p, { stockChanged }); renderInventory(); renderProducts(); toast("Produto atualizado.");
 }
 async function deleteProduct(id) {
-  if (!await authorizeSensitiveAction("excluir produto")) return;
+  if (!await authorize("deleteProduct")) return;
   if (!confirm("Deseja realmente excluir este produto?")) return;
   currentCompany.products = currentCompany.products.filter(p => p.id !== id);
   cart = cart.filter(x => x.id !== id);
@@ -317,29 +348,6 @@ async function deleteProduct(id) {
 }
 $("#addProductBtn").addEventListener("click", () => openProductModal("")); // [NEXUS HW] modal no lugar dos prompts
 
-function loadSecuritySettings() {
-  const enabled = Boolean(currentCompany.security?.enabled);
-  $("#stockProtectionToggle").checked = enabled;
-  $("#passwordSettings").classList.toggle("disabled", !enabled);
-  $("#securityStatus").textContent = enabled ? "Proteção ativa neste dispositivo." : "Proteção desativada.";
-}
-$("#stockProtectionToggle").addEventListener("change", e => {
-  $("#passwordSettings").classList.toggle("disabled", !e.target.checked);
-  if (!e.target.checked) toast("Salve para desativar a proteção.");
-});
-$("#saveSecurityBtn").addEventListener("click", async () => {
-  const enabled = $("#stockProtectionToggle").checked;
-  if (enabled) {
-    const p1 = $("#masterPassword").value, p2 = $("#masterPasswordConfirm").value;
-    if (p1.length < 4 || p1 !== p2) { $("#securityStatus").textContent = "As senhas devem ter ao menos 4 caracteres e ser iguais."; return; }
-    currentCompany.security = { enabled:true, passwordHash:await hashDemoPassword(p1) };
-  } else {
-    if (currentCompany.security?.enabled && !await authorizeSensitiveAction("desativar proteção de estoque")) return;
-    currentCompany.security = { enabled:false, passwordHash:"" };
-  }
-  await recordSetting("security"); $("#masterPassword").value = ""; $("#masterPasswordConfirm").value = "";
-  loadSecuritySettings(); toast("Configuração de segurança salva.");
-});
 
 
 // ==========================================================================
@@ -486,7 +494,7 @@ document.addEventListener("keydown", (e) => {
 // ---------- Cadastro rápido de produto (sem travar o caixa) ----------
 let productModalFromScanner = false;
 async function openProductModal(code = "", fromScanner = false) {
-  if (!await authorizeSensitiveAction("adicionar produto")) { focusScanner(); return; }
+  if (!await authorize("addProduct")) { focusScanner(); return; }
   productModalFromScanner = fromScanner;
   $("#productForm").reset();
   $("#pfCode").value = code;
@@ -656,7 +664,8 @@ function printReceipt(sale, cfg = getHardware()) {
   setTimeout(() => window.print(), 60);
 }
 window.addEventListener("afterprint", () => setTimeout(focusScanner, 50));
-$("#reprintBtn").addEventListener("click", () => {
+$("#reprintBtn").addEventListener("click", async () => {
+  if (!await authorize("reprint")) return;
   const last = currentCompany?.sales?.at(-1);
   if (!last) { toast("Nenhuma venda registrada ainda."); return; }
   printReceipt(last);
@@ -702,6 +711,169 @@ $("#saveHardwareBtn").addEventListener("click", async () => {
 });
 $("#testPrintBtn").addEventListener("click", () => printReceipt(testSale(), readHardwareForm()));
 // [/NEXUS HW]
+
+// ==========================================================================
+// [NEXUS ADM] Senhas e permissões
+// O dono escolhe, para cada ação, se o atendente faz livre, com a senha do
+// atendente/supervisor, ou se só o ADM pode. Senhas guardadas com PBKDF2.
+// ==========================================================================
+const PERMISSIONS = [
+  { key: "deleteProduct", label: "Excluir produto", hint: "Na tela Produtos e estoque", def: "admin" },
+  { key: "editProduct", label: "Alterar preço ou estoque", hint: "Na tela Produtos e estoque", def: "admin" },
+  { key: "addProduct", label: "Cadastrar produto novo", hint: "Inclui o cadastro rápido pelo leitor", def: "livre" },
+  { key: "discount", label: "Dar desconto na venda", hint: "Em R$ ou %", def: "supervisor" },
+  { key: "removeItem", label: "Tirar item ou limpar a venda", hint: "Botões −, Remover e Limpar do carrinho", def: "livre" },
+  { key: "reprint", label: "Reimprimir recibo", hint: "Botão Reimprimir último recibo", def: "livre" }
+];
+const LEVELS = { livre: "✅ Livre (sem senha)", supervisor: "🟡 Senha do atendente", admin: "🔴 Só senha do ADM" };
+
+async function hashSecret(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 100000 }, key, 256);
+  const b64 = (u) => btoa(String.fromCharCode(...new Uint8Array(u)));
+  return `pbkdf2$100000$${b64(salt)}$${b64(bits)}`;
+}
+async function verifySecret(password, stored) {
+  if (!stored) return false;
+  if (!stored.startsWith("pbkdf2$")) return (await hashDemoPassword(password)) === stored; // senha mestre antiga
+  const [, iter, saltB64, hashB64] = stored.split("$");
+  const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: Number(iter) }, key, 256);
+  return btoa(String.fromCharCode(...new Uint8Array(bits))) === hashB64;
+}
+function sec() {
+  const s = (currentCompany.security ||= {});
+  if (s.enabled && s.passwordHash && !s.adminHash) s.adminHash = s.passwordHash; // migra a "senha mestre" antiga
+  s.permissions ||= {};
+  return s;
+}
+const permLevel = (key) => sec().permissions[key] || PERMISSIONS.find(p => p.key === key)?.def || "livre";
+
+// Janela de senha (no lugar do prompt, que mostrava a senha em texto aberto)
+let permResolve = null;
+function askPassword({ title, desc, label = "Senha", hashes = [], noPassword = false }) {
+  return new Promise((resolve) => {
+    permResolve = (ok) => { permResolve = null; $("#permModal").classList.add("hidden"); resolve(ok); };
+    $("#permTitle").textContent = title;
+    $("#permDesc").textContent = desc;
+    $("#permLabel").textContent = label;
+    $("#permError").textContent = "";
+    $("#permPass").value = "";
+    $("#permFieldWrap").classList.toggle("hidden", noPassword);
+    $("#permSubmit").textContent = noPassword ? "Ir para Configurações ADM →" : "Autorizar →";
+    $("#permForm").dataset.mode = noPassword ? "setup" : "check";
+    $("#permForm")._hashes = hashes;
+    $("#permModal").classList.remove("hidden");
+    setTimeout(() => (noPassword ? $("#permSubmit") : $("#permPass")).focus(), 30);
+  });
+}
+$("#permForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!permResolve) return;
+  if (e.target.dataset.mode === "setup") { permResolve(false); showPanel("admin"); return; }
+  const pass = $("#permPass").value;
+  for (const h of e.target._hashes) if (await verifySecret(pass, h)) { permResolve(true); return; }
+  $("#permError").textContent = "Senha incorreta.";
+  $("#permPass").select();
+});
+const cancelPerm = () => { if (permResolve) { permResolve(false); focusScanner(); } };
+$$("[data-close-perm]").forEach(b => b.addEventListener("click", cancelPerm));
+$("#permModal").addEventListener("click", (e) => { if (e.target.id === "permModal") cancelPerm(); });
+
+async function authorize(key) {
+  const level = permLevel(key);
+  if (level === "livre") return true;
+  const s = sec();
+  const perm = PERMISSIONS.find(p => p.key === key);
+  if (!s.adminHash) {
+    await askPassword({ title: "Crie a senha do ADM", desc: `"${perm.label}" precisa de senha, mas a senha do administrador ainda não foi criada.`, noPassword: true });
+    return false;
+  }
+  const useSup = level === "supervisor" && s.supervisorHash;
+  return askPassword({
+    title: perm.label,
+    desc: useSup ? "Digite a senha do atendente/supervisor ou a do ADM." : "Esta ação precisa da senha do ADM.",
+    label: useSup ? "Senha do atendente ou do ADM" : "Senha do ADM",
+    hashes: useSup ? [s.supervisorHash, s.adminHash] : [s.adminHash]
+  });
+}
+
+// ---------- Área do ADM trancada ----------
+let admUnlocked = false;
+function renderAdminGate() {
+  const hasAdmin = Boolean(sec().adminHash);
+  $("#adminLock").classList.toggle("hidden", admUnlocked);
+  $("#adminContent").classList.toggle("hidden", !admUnlocked);
+  if (admUnlocked) return;
+  $("#admLockForm").reset();
+  $("#admLockError").textContent = "";
+  $("#admOwnerWrap").classList.toggle("hidden", hasAdmin);
+  $("#admConfirmWrap").classList.toggle("hidden", hasAdmin);
+  $("#admLockTitle").textContent = hasAdmin ? "Área do administrador" : "Crie a senha do ADM";
+  $("#admLockDesc").textContent = hasAdmin
+    ? "Digite a senha do ADM para ver e mudar as configurações da loja."
+    : "Primeiro acesso: confirme a senha da sua conta e crie a senha do administrador. Só quem souber essa senha entra aqui.";
+  $("#admPassLabel").textContent = hasAdmin ? "Senha do ADM" : "Nova senha do ADM (mínimo 4)";
+  $("#admLockSubmit").textContent = hasAdmin ? "Entrar no ADM →" : "Criar senha e entrar →";
+  setTimeout(() => (hasAdmin ? $("#admPass") : $("#admOwnerPass")).focus(), 30);
+}
+$("#admLockForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = $("#admLockError"), s = sec();
+  const pass = $("#admPass").value;
+  if (s.adminHash) {
+    if (!await verifySecret(pass, s.adminHash)) { err.textContent = "Senha do ADM incorreta."; $("#admPass").select(); return; }
+  } else {
+    if ((await hashDemoPassword($("#admOwnerPass").value)) !== currentCompany.passwordHash) { err.textContent = "A senha da conta não confere."; return; }
+    if (pass.length < 4) { err.textContent = "A senha do ADM precisa ter pelo menos 4 caracteres."; return; }
+    if (pass !== $("#admPass2").value) { err.textContent = "As senhas não são iguais."; return; }
+    s.adminHash = await hashSecret(pass);
+    delete s.enabled; delete s.passwordHash;
+    await recordSetting("security");
+    toast("Senha do ADM criada.");
+  }
+  admUnlocked = true;
+  renderAdminGate(); loadSecuritySettings(); loadHardwareSettings();
+});
+$("#admLockNow").addEventListener("click", () => { admUnlocked = false; renderAdminGate(); toast("Configurações ADM trancadas."); });
+
+function loadSecuritySettings() {
+  const s = sec();
+  $("#permTable").innerHTML = PERMISSIONS.map(p => {
+    const level = permLevel(p.key);
+    return `<div class="perm-row"><div><b>${p.label}</b><small>${p.hint}</small></div>
+      <select data-perm="${p.key}" data-level="${level}" aria-label="${p.label}">${Object.entries(LEVELS).map(([k, v]) => `<option value="${k}" ${k === level ? "selected" : ""}>${v}</option>`).join("")}</select></div>`;
+  }).join("");
+  $$("[data-perm]").forEach(sel => sel.addEventListener("change", async () => {
+    sec().permissions[sel.dataset.perm] = sel.value;
+    sel.dataset.level = sel.value;
+    await recordSetting("security");
+    $("#securityStatus").textContent = "Permissão salva.";
+  }));
+  $("#supervisorState").textContent = s.supervisorHash ? "✓ Criada. O atendente usa esta senha nas ações marcadas em amarelo." : "Não criada: as ações em amarelo pedem a senha do ADM.";
+  $("#removeSupPass").disabled = !s.supervisorHash;
+  $("#securityStatus").textContent = "";
+}
+async function saveNewPassword(inputA, inputB, field, okMsg) {
+  const a = $(inputA).value, b = $(inputB).value;
+  if (a.length < 4) { $("#securityStatus").textContent = "A senha precisa ter pelo menos 4 caracteres."; return; }
+  if (a !== b) { $("#securityStatus").textContent = "As senhas não são iguais."; return; }
+  sec()[field] = await hashSecret(a);
+  await recordSetting("security");
+  $(inputA).value = ""; $(inputB).value = "";
+  loadSecuritySettings(); toast(okMsg);
+}
+$("#saveAdminPass").addEventListener("click", () => saveNewPassword("#newAdminPass", "#newAdminPass2", "adminHash", "Senha do ADM trocada."));
+$("#saveSupPass").addEventListener("click", () => saveNewPassword("#newSupPass", "#newSupPass2", "supervisorHash", "Senha do atendente salva."));
+$("#removeSupPass").addEventListener("click", async () => {
+  if (!confirm("Remover a senha do atendente? As ações em amarelo passam a pedir a senha do ADM.")) return;
+  delete sec().supervisorHash;
+  await recordSetting("security");
+  loadSecuritySettings(); toast("Senha do atendente removida.");
+});
+// [/NEXUS ADM]
 
 // ==========================================================================
 // [NEXUS SYNC] Sincronização incremental com a nuvem
@@ -1353,7 +1525,8 @@ $("#broadcastForm").addEventListener("submit", async (e) => {
 // [/NEXUS CLOUD]
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (!$("#plansModal").classList.contains("hidden")) closePlansModal();
+  if (!$("#permModal").classList.contains("hidden")) cancelPerm();
+  else if (!$("#plansModal").classList.contains("hidden")) closePlansModal();
   else if (!$("#masterLoginModal").classList.contains("hidden")) closeMasterLogin();
   else if (!$("#masterView").classList.contains("hidden")) closeMasterView();
 });

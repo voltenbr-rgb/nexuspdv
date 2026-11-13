@@ -19,11 +19,12 @@ No Android/Chrome aparece o botão **Instalar app**. No iPhone: Compartilhar →
 ## Temas
 - **Verde** (padrão): branco com verde e detalhes amarelos
 - **Laranja** e **Amarelo**: tons de caixa
-- **Modo azul**: escuro suave, alternado pelo botão 🌙 no topo do caixa
+- **Modo azul**: branco com azul (barra lateral azul, cards brancos), alternado pelo botão 🔵 no topo do caixa
 
 Escolha em Configurações ADM → Aparência, ou nas bolinhas do topo da página inicial.
 
 ## Caixa
+- Três colunas, cada uma com rolagem própria: **Categorias** | **Mais vendidos** (calculado pelas vendas; sem vendas, mostra sugestões) | **Produtos** em cards
 - Cards com preço em destaque, favoritos (♥), estoque por cor e botão Adicionar
 - Carrinho com miniaturas, quantidade, remover, desconto (R$ ou %, protegido pela senha de autorização) e forma de pagamento
 - Aviso do teste de 7 dias: mostra quantos dias restam e volta a cada 24 h depois de fechado. No último dia não dá para fechar, e o botão vira **Conhecer os planos**. O pedido de plano aparece na Área Master (filtro "Pedidos de plano").
@@ -44,8 +45,17 @@ Opcional: para usar uma senha master definida no painel da Cloudflare em vez da 
 ## Planos (ilustrativos)
 Básico R$ 39,90 · Completo R$ 99,90 · Premium R$ 189,90 por mês.
 
+## Configurações ADM e permissões
+- A tela **Configurações ADM** fica trancada. Só abre com a **senha do ADM**, e tranca de novo quando você sai dela.
+- No primeiro acesso, o dono confirma a senha da conta e cria a senha do ADM.
+- **Senha do atendente/supervisor** (opcional), criada pelo ADM.
+- Para cada ação, o ADM escolhe: ✅ livre, 🟡 senha do atendente, ou 🔴 só senha do ADM.
+  Ações: excluir produto, alterar preço/estoque, cadastrar produto, dar desconto, tirar item/limpar venda, reimprimir recibo.
+- A senha é digitada numa janela própria (oculta), e não numa caixa de texto aberta.
+- Senhas guardadas com PBKDF2. Valem em todos os aparelhos da loja (sincronizadas).
+
 ## Periféricos
-- **Leitor de código de barras USB:** barra no topo do caixa, bipe sonoro, cadastro rápido de código desconhecido. Atalhos: F2 foca o leitor, F4 finaliza a venda, Esc fecha janelas.
+- **Leitor de código de barras USB:** barra no topo do caixa, bipe sonoro, cadastro rápido de código desconhecido. Atalhos: **F2** (tecla do teclado) põe o cursor no campo do leitor para bipar, F4 finaliza a venda, Esc fecha janelas.
 - **Impressora térmica 58/80 mm:** recibo não fiscal, configurável em Configurações ADM → Configuração de Hardware. Para imprimir sem diálogo, abra o Chrome com `--kiosk-printing`.
 
 ## Segurança

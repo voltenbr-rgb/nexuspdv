@@ -260,23 +260,10 @@ body.in-app .site-header{display:none}
    [NEXUS THEME v2] Verde + branco com amarelo (padrão) e modo azul suave
    ========================================================================== */
 body[data-theme=verde]{--bg:#f3f6f4;--surface:#ffffff;--surface2:#eef4f0;--surface3:#dcefe5;--text:#18261f;--muted:#66776f;--line:rgba(24,80,55,.11);--primary:#1f8a65;--primary2:#177454;--glow:rgba(31,138,101,.14);--good:#15803d;--danger:#dc2626;--shadow:0 18px 50px rgba(20,60,40,.09);--btn-from:#25a37a;--btn-to:#1a7d5c;--btn-text:#fff;--accent-soft:#e2f3ea;--grad-a:#1f8a65;--grad-b:#d9a300;--accent2:#f5b400;--accent2-soft:#fff6d6}
-body[data-theme=azul]{--bg:#18263d;--surface:#1f3150;--surface2:#263c5f;--surface3:#2f486f;--text:#edf3ff;--muted:#a8b9d6;--line:rgba(170,200,255,.14);--primary:#4f8cff;--primary2:#93bbff;--glow:rgba(79,140,255,.22);--good:#4ade80;--danger:#fb7185;--shadow:0 20px 60px rgba(5,12,30,.35);--btn-from:#5c9bff;--btn-to:#3a6fe2;--btn-text:#fff;--accent-soft:rgba(79,140,255,.16);--grad-a:#93bbff;--grad-b:#ffd46b;--accent2:#ffcf4d;--accent2-soft:rgba(255,207,77,.14)}
 body[data-theme=laranja]{--accent2:#f59e0b;--accent2-soft:#fef3c7}
 body[data-theme=amarelo]{--accent2:#eab308;--accent2-soft:#fef9c3}
-.theme-dot.verde,.theme-options i.verde{background:#1f8a65}.theme-dot.azul,.theme-options i.azul{background:#3a6fe2}
+.theme-dot.verde,.theme-options i.verde{background:#1f8a65}.theme-dot.azul,.theme-options i.azul{background:#2563eb}
 /* modo azul: substitui as cores fixas escuras do tema antigo */
-body[data-theme=azul] .site-header{background:rgba(24,38,61,.88)}
-body[data-theme=azul] .gradient-text{background-image:linear-gradient(100deg,var(--grad-a),var(--grad-b))}
-body[data-theme=azul] .dashboard-window{background:linear-gradient(145deg,#24395c,#1c2d4a)}
-body[data-theme=azul] .toast{background:#0f1b2e}
-body[data-theme=azul] .modal-backdrop{background:rgba(8,15,30,.6)}
-body[data-theme=azul] .sidebar{background:var(--surface)}
-body[data-theme=azul] .side-link:hover,body[data-theme=azul] .side-link.active{background:var(--accent-soft)}
-body[data-theme=azul] .trial-banner{background:#ffd46b;color:#2a1f00}
-body[data-theme=azul] .status-pill.green{background:rgba(74,222,128,.16);color:#86efac}
-body[data-theme=azul] .status-pill.yellow{background:rgba(250,204,21,.16);color:#fde68a}
-body[data-theme=azul] .status-pill.red{background:rgba(251,113,133,.16);color:#fda4af}
-body[data-theme=azul] .bc-msg.aviso,body[data-theme=azul] .bc-msg.urgente{background:var(--surface)}
 body[data-theme=verde] .trial-banner{background:#fff1b8;color:#4a3800}
 body[data-theme=verde] .plan-badge{background:var(--accent2);color:#3a2a00}
 body.theme-light .modal-backdrop{background:rgba(20,35,28,.42)}
@@ -308,7 +295,6 @@ body[data-theme=amarelo] .category-chips .chip.active{color:#fff}
 .product-media{height:104px;border-radius:12px;display:grid;place-items:center;font-size:52px;background:radial-gradient(circle at 50% 60%,var(--surface),var(--surface2) 70%);margin-bottom:11px}
 .fav-btn{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:14px;line-height:1;display:grid;place-items:center;z-index:1}
 .fav-btn.on{color:#e11d48;border-color:rgba(225,29,72,.3);background:#fff1f2}
-body[data-theme=azul] .fav-btn.on{background:rgba(225,29,72,.15)}
 .product-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .product-row b{font-size:13px;line-height:1.3;font-weight:700}
 .product-price{font:800 15px Manrope,sans-serif;color:var(--primary2);white-space:nowrap}
@@ -357,7 +343,6 @@ body[data-theme=azul] .fav-btn.on{background:rgba(225,29,72,.15)}
 
 /* Pedido de plano na Área Master */
 .request-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--accent2-soft,#fef3c7);color:#92400e}
-body[data-theme=azul] .request-tag{color:#fde68a}
 
 /* Botão Master: pequeno, redondo e discreto — no rodapé, à direita */
 .master-dot{width:11px;height:11px;border:0;background:var(--muted);opacity:.45;margin-left:8px;cursor:pointer}
@@ -378,7 +363,123 @@ body.theme-light .site-header{background:color-mix(in srgb,var(--bg) 90%,transpa
 @media(max-width:620px){.catalog-head{align-items:stretch}.catalog-head>div{text-align:left}}
 /* [NEXUS SYNC] status da sincronização na barra lateral */
 .sync-status.ok{color:var(--good)}.sync-status.pending{color:#b45309}.sync-status.local{color:var(--muted)}
-body[data-theme=azul] .sync-status.pending{color:#fde68a}
 /* Botão da Área Master: pontinho colorido, pequeno e visível no rodapé */
 .master-dot{width:10px!important;height:10px!important;padding:0!important;border-radius:50%!important;border:2px solid color-mix(in srgb,var(--primary) 35%,transparent)!important;background:var(--primary)!important;opacity:.9!important;box-sizing:content-box;display:inline-block;vertical-align:middle;margin-left:10px;cursor:pointer}
 .master-dot:hover,.master-dot:focus-visible{opacity:1!important;transform:scale(1.35)}
+
+/* ==========================================================================
+   [NEXUS THEME v3] Modo azul claro: branco com azul (lateral azul, cards brancos)
+   ========================================================================== */
+body[data-theme=azul]{--bg:#eef3fb;--surface:#ffffff;--surface2:#f1f6fe;--surface3:#dbe7fb;--text:#16233b;--muted:#5f6f8c;--line:rgba(37,99,235,.13);--primary:#2563eb;--primary2:#1d4ed8;--glow:rgba(37,99,235,.14);--good:#15803d;--danger:#dc2626;--shadow:0 18px 50px rgba(20,40,90,.10);--btn-from:#3b82f6;--btn-to:#1d4ed8;--btn-text:#fff;--accent-soft:#e3edfd;--grad-a:#1d4ed8;--grad-b:#0ea5e9;--accent2:#f5b400;--accent2-soft:#fff6d6}
+body[data-theme=azul] .sidebar{background:linear-gradient(180deg,#1e40af,#1e3a8a);border-right:0}
+body[data-theme=azul] .sidebar .brand,body[data-theme=azul] .sidebar .side-link{color:#e0eaff}
+body[data-theme=azul] .sidebar .brand-light,body[data-theme=azul] .sidebar .side-label,body[data-theme=azul] .sidebar .offline-indicator{color:#a9c1f5}
+body[data-theme=azul] .sidebar .side-link:hover,body[data-theme=azul] .sidebar .side-link.active{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 3px 0 #fff}
+body[data-theme=azul] .sidebar .store-switch{background:rgba(255,255,255,.1)}
+body[data-theme=azul] .sidebar .store-switch small{color:#a9c1f5}body[data-theme=azul] .sidebar .store-switch b{color:#fff}
+body[data-theme=azul] .sidebar .store-switch span{color:#bbf7d0}body[data-theme=azul] .sidebar .store-switch span.st-yellow{color:#fde68a}body[data-theme=azul] .sidebar .store-switch span.st-red{color:#fecaca}
+body[data-theme=azul] .sidebar .sync-status.ok{color:#bbf7d0}body[data-theme=azul] .sidebar .sync-status.pending{color:#fde68a}
+body[data-theme=azul] .sidebar .brand-mark{background:#fff;color:#1d4ed8}
+body[data-theme=azul] .sidebar-bottom{border-color:rgba(255,255,255,.15)}
+body[data-theme=azul] .offline-indicator{border-top-color:rgba(255,255,255,.15)}
+body[data-theme=azul] .trial-banner{background:#dbeafe;color:#1e3a8a}
+body[data-theme=azul] .banner-plans{background:#1d4ed8}
+body[data-theme=azul] .toast{background:#16233b}
+@media(max-width:620px){body[data-theme=azul] .sidebar{background:#1e40af}}
+
+/* ==========================================================================
+   [NEXUS POS v3] Caixa em colunas: categorias | mais vendidos | produtos
+   Cada coluna rola sozinha.
+   ========================================================================== */
+.pos-columns{display:grid;grid-template-columns:168px 236px minmax(0,1fr);gap:14px;height:calc(100vh - 290px);min-height:460px}
+.pos-col{min-height:0;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:12px;scrollbar-width:thin}
+.col-products{background:transparent;border:0;padding:0 4px 12px 0}
+.col-title{position:sticky;top:-12px;z-index:2;margin:-12px -12px 10px;padding:12px 12px 8px;background:inherit;font:800 12px Manrope,sans-serif;letter-spacing:.3px;color:var(--text);border-radius:16px 16px 0 0}
+.col-products .col-title{top:0;margin:0 0 10px;padding:0 0 6px;background:var(--bg);border-radius:0}
+.cat-list{display:flex;flex-direction:column;gap:6px}
+.cat-item{display:flex;align-items:center;gap:9px;width:100%;padding:10px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--text);text-align:left;font-size:12px;font-weight:600;transition:.15s}
+.cat-item .cat-ico{width:32px;height:32px;flex-shrink:0;border-radius:10px;display:grid;place-items:center;font-size:17px;background:var(--surface2)}
+.cat-item .cat-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-item .cat-count{font-size:10px;font-weight:800;color:var(--muted);background:var(--surface2);border-radius:20px;padding:2px 7px}
+.cat-item:hover{background:var(--surface2)}
+.cat-item.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 8px 18px var(--glow)}
+.cat-item.active .cat-ico{background:rgba(255,255,255,.2)}.cat-item.active .cat-count{background:rgba(255,255,255,.22);color:#fff}
+.top-list{display:flex;flex-direction:column;gap:7px}
+.top-hint{font-size:10px;color:var(--muted);margin:-4px 0 8px}
+.top-item{display:grid;grid-template-columns:20px 38px minmax(0,1fr);grid-template-rows:auto auto;column-gap:8px;align-items:center;width:100%;padding:8px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);text-align:left;transition:.15s}
+.top-item:hover{border-color:var(--primary);box-shadow:0 8px 18px var(--glow);transform:translateY(-1px)}
+.top-item:active{transform:scale(.98)}
+.top-item.flash{animation:cardFlash .45s ease}
+.ti-rank{grid-row:1/3;font:800 12px Manrope,sans-serif;color:var(--muted);text-align:center}
+.top-item:nth-child(-n+3) .ti-rank{color:var(--accent2,#f59e0b)}
+.ti-emoji{grid-row:1/3;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:21px;background:var(--surface2)}
+.ti-name{font-size:11px;font-weight:700;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti-meta{display:flex;justify-content:space-between;gap:6px;font-size:10px;color:var(--muted)}
+.ti-meta strong{font:800 12px Manrope,sans-serif;color:var(--primary2)}
+.col-products .product-grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
+.col-products .product-media{height:88px;font-size:44px}
+
+@media(max-width:1250px){
+  .pos-columns{grid-template-columns:150px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:auto;min-height:0}
+  .col-cats{grid-row:1/3;max-height:calc(100vh - 290px);min-height:420px}
+  .col-top{max-height:none;overflow-x:auto;overflow-y:hidden;padding:10px}
+  .col-top .col-title{position:static;margin:0 0 8px;padding:0}
+  .top-list{flex-direction:row}
+  .top-item{min-width:190px}
+  .col-products{max-height:calc(100vh - 420px);min-height:360px}
+}
+@media(max-width:620px){
+  .pos-columns{display:flex;flex-direction:column;height:auto}
+  .pos-col{max-height:none!important;min-height:0!important;overflow:visible}
+  .col-cats{padding:8px;overflow-x:auto}
+  .col-cats .col-title{display:none}
+  .cat-list{flex-direction:row}
+  .cat-item{width:auto;flex-shrink:0;padding:7px 10px}
+  .cat-item .cat-ico{width:24px;height:24px;font-size:14px}
+  .col-top{overflow-x:auto}
+  .top-item{min-width:170px}
+  .col-products{overflow:visible}
+  .col-products .col-title{position:static}
+}
+
+/* ==========================================================================
+   [NEXUS ADM] Área do administrador trancada + permissões
+   ========================================================================== */
+.adm-lock{display:grid;place-items:center;min-height:calc(100vh - 220px);padding:20px}
+.adm-lock-card{width:min(100%,400px);text-align:center;padding:32px 28px;border-radius:20px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.adm-lock-icon{font-size:38px}
+.adm-lock-card h2{font:800 22px Manrope,sans-serif;margin:8px 0 6px}
+.adm-lock-card p{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 14px}
+.adm-lock-card form{text-align:left}
+.adm-lock-card label,#permModal label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin:12px 0 6px}
+.adm-lock-card input{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text);outline:none;font:inherit;font-size:13px}
+.adm-lock-card input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--glow)}
+#permModal{z-index:97}
+.perms-card{grid-column:2}
+.perms-card .settings-card-head{flex-wrap:wrap}
+.perms-card .settings-card-head>div{flex:1}
+.perm-table{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.perm-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;border-top:1px solid var(--line);font-size:12px}
+.perm-row:first-child{border-top:0}
+.perm-row b{display:block;font-size:12px}.perm-row small{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+.perm-row select{min-width:190px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text);font:inherit;font-size:11px;font-weight:600}
+.perm-row select[data-level=livre]{border-color:rgba(22,163,74,.4)}
+.perm-row select[data-level=supervisor]{border-color:rgba(234,179,8,.55)}
+.perm-row select[data-level=admin]{border-color:rgba(220,38,38,.45)}
+.pass-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pass-box{display:flex;flex-direction:column;gap:7px;padding:13px;border-radius:12px;background:var(--surface2)}
+.pass-box b{font-size:12px}.pass-box small{font-size:10px;color:var(--muted);margin-top:-4px}
+.pass-box input{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:12px;outline:none}
+.pass-box input:focus{border-color:var(--primary)}
+.row-btns{display:flex;gap:6px}.row-btns .btn{flex:1}
+@media(max-width:900px){.perms-card{grid-column:1}.pass-grid{grid-template-columns:1fr}.perm-row{flex-direction:column;align-items:stretch}.perm-row select{min-width:0}}
+/* ajustes das colunas e da paleta */
+.pos-columns{grid-template-columns:186px 236px minmax(0,1fr)}
+.cat-item{padding:9px 8px;gap:8px}
+.cat-item .cat-name{white-space:normal;overflow:visible;line-height:1.2}
+.col-products{padding-left:2px}
+.col-products .col-title{padding-left:2px}
+.theme-options button i.verde{background:#1f8a65}.theme-options button i.laranja{background:#f97316}.theme-options button i.amarelo{background:#facc15}.theme-options button i.azul{background:#2563eb}
+@media(max-width:1250px){.pos-columns{grid-template-columns:170px minmax(0,1fr)}}
+@media(max-width:620px){.col-products .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.col-products .product-media{height:76px;font-size:38px}}
+.catalog-area,.pos-columns,.pos-col{min-width:0}

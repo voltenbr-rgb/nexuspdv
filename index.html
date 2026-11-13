@@ -144,7 +144,7 @@
             <input id="scannerInput" type="text" placeholder="Bipe o código de barras ou digite e tecle Enter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus aria-label="Leitor de código de barras">
           </label>
           <span id="scannerStatus" class="scanner-status ready" role="status" aria-live="polite"><i></i><span>Leitor USB pronto</span></span>
-          <button id="scannerFocusBtn" class="scanner-key" type="button" title="Devolver o foco ao leitor (F2)"><kbd>F2</kbd> Focar leitor</button>
+          <button id="scannerFocusBtn" class="scanner-key" type="button" title="Coloca o cursor no campo do leitor para bipar. Atalho: tecla F2 do teclado."><kbd>F2</kbd> Ativar leitor</button>
         </div>
         <div id="scannerAlert" class="scanner-alert hidden" role="alert">
           <span>⚠️ Produto não cadastrado: <b id="scannerAlertCode"></b></span>
@@ -152,7 +152,11 @@
           <button id="scannerAlertClose" class="scanner-alert-x" type="button" aria-label="Fechar aviso">×</button>
         </div>
         <!-- [/NEXUS HW] -->
-        <div class="pos-layout"><div class="catalog-area"><div class="panel-toolbar catalog-head"><div><h2>Encontre o produto</h2><p id="productCount">Toque no card para adicionar à venda.</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="productSearch" placeholder="Buscar por nome ou código..." autocomplete="off"></label></div><div id="categoryChips" class="category-chips"><button class="chip active" data-category="Todos">Todos</button><button class="chip" data-category="Favoritos">♥ Favoritos</button><button class="chip" data-category="Mercearia">Mercearia</button><button class="chip" data-category="Bebidas">Bebidas</button><button class="chip" data-category="Limpeza">Limpeza</button></div><div id="productGrid" class="product-grid"></div></div>
+        <div class="pos-layout"><div class="catalog-area"><div class="panel-toolbar catalog-head"><div><h2>Encontre o produto</h2><p id="productCount">Toque no card para adicionar à venda.</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="productSearch" placeholder="Buscar por nome ou código..." autocomplete="off"></label></div><div class="pos-columns">
+            <nav class="pos-col col-cats" aria-label="Categorias"><div class="col-title">Categorias</div><div id="categoryList" class="cat-list"></div></nav>
+            <section class="pos-col col-top" aria-labelledby="topTitle"><div class="col-title" id="topTitle">🔥 Mais vendidos</div><div id="topSellers" class="top-list"></div></section>
+            <section class="pos-col col-products" aria-labelledby="productsTitle"><div class="col-title" id="productsTitle">Todos os produtos</div><div id="productGrid" class="product-grid"></div></section>
+          </div></div>
           <aside class="cart-panel">
             <div class="cart-header"><div><h2>Venda atual</h2><p id="cartCount">0 itens</p></div><button id="clearCart" class="text-button" type="button">🗑 Limpar</button></div>
             <div id="cartItems" class="cart-items"><div class="empty-cart">Seu carrinho está vazio.<br><small>Bipe ou toque em um produto.</small></div></div>
@@ -171,7 +175,31 @@
         </div>
       </section>
       <section id="productsPanel" class="app-panel hidden"><div class="panel-toolbar"><div><h2>Produtos e estoque</h2><p>Gerencie os itens cadastrados na sua loja.</p></div><button id="addProductBtn" class="btn btn-primary">＋ Novo produto</button></div><div class="table-wrap"><table><thead><tr><th>PRODUTO</th><th>CATEGORIA</th><th>CÓDIGO</th><th>PREÇO</th><th>ESTOQUE</th><th>AÇÕES</th></tr></thead><tbody id="inventoryTable"></tbody></table></div></section>
-      <section id="adminPanel" class="app-panel hidden"><div class="settings-grid"><div class="settings-intro"><div class="eyebrow">CONTROLE DA LOJA</div><h2>Configurações<br>administrativas.</h2><p>Defina como sua equipe acessa operações sensíveis e personalize a experiência.</p></div><div class="settings-card"><div class="settings-card-head"><span class="settings-icon">⌑</span><div><h3>Proteção de estoque</h3><p>Exija uma senha mestre para alterações sensíveis.</p></div></div><label class="toggle-line"><span><b>Ativar senha de autorização</b><small>Protege alteração de preço, exclusão e ações administrativas.</small></span><input type="checkbox" id="stockProtectionToggle"><i class="toggle"></i></label><div id="passwordSettings" class="password-settings"><label for="masterPassword">Senha mestre</label><input id="masterPassword" type="password" placeholder="Mínimo de 4 caracteres"><label for="masterPasswordConfirm">Confirmar senha</label><input id="masterPasswordConfirm" type="password" placeholder="Repita a senha"><button id="saveSecurityBtn" class="btn btn-primary">Salvar proteção</button><small id="securityStatus" class="status-text"></small></div><div class="security-footnote">Este protótipo guarda a configuração apenas neste navegador. Em produção, valide permissões e senhas no servidor.</div></div>
+      <section id="adminPanel" class="app-panel hidden">
+        <div id="adminLock" class="adm-lock">
+          <div class="adm-lock-card">
+            <div class="adm-lock-icon">🔐</div>
+            <h2 id="admLockTitle">Área do administrador</h2>
+            <p id="admLockDesc">Digite a senha do ADM para ver e mudar as configurações da loja.</p>
+            <form id="admLockForm">
+              <div id="admOwnerWrap" class="hidden"><label for="admOwnerPass">Senha da conta (a mesma do login)</label><input id="admOwnerPass" type="password" autocomplete="current-password"></div>
+              <label for="admPass" id="admPassLabel">Senha do ADM</label><input id="admPass" type="password" autocomplete="off" required>
+              <div id="admConfirmWrap" class="hidden"><label for="admPass2">Confirmar senha do ADM</label><input id="admPass2" type="password" autocomplete="new-password"></div>
+              <div id="admLockError" class="form-error"></div>
+              <button class="btn btn-primary modal-submit" type="submit" id="admLockSubmit">Entrar no ADM →</button>
+            </form>
+          </div>
+        </div>
+        <div id="adminContent" class="hidden"><div class="settings-grid"><div class="settings-intro"><div class="eyebrow">CONTROLE DA LOJA</div><h2>Configurações<br>administrativas.</h2><p>Defina como sua equipe acessa operações sensíveis e personalize a experiência.</p></div><div class="settings-card perms-card">
+          <div class="settings-card-head"><span class="settings-icon">🔑</span><div><h3>Senhas e permissões</h3><p>Escolha o que o atendente pode fazer e com qual senha.</p></div><button id="admLockNow" class="btn btn-secondary btn-small" type="button">🔒 Trancar ADM</button></div>
+          <div class="perm-table" id="permTable"></div>
+          <div class="pass-grid">
+            <div class="pass-box"><b>Senha do ADM (dono)</b><small>Abre esta área e autoriza tudo.</small><input id="newAdminPass" type="password" placeholder="Nova senha do ADM" autocomplete="new-password"><input id="newAdminPass2" type="password" placeholder="Confirmar" autocomplete="new-password"><button id="saveAdminPass" class="btn btn-secondary" type="button">Trocar senha do ADM</button></div>
+            <div class="pass-box"><b>Senha do atendente / supervisor</b><small id="supervisorState">Não criada: as ações com esta senha pedem a do ADM.</small><input id="newSupPass" type="password" placeholder="Senha do atendente" autocomplete="new-password"><input id="newSupPass2" type="password" placeholder="Confirmar" autocomplete="new-password"><div class="row-btns"><button id="saveSupPass" class="btn btn-secondary" type="button">Salvar senha</button><button id="removeSupPass" class="btn btn-ghost" type="button">Remover</button></div></div>
+          </div>
+          <small id="securityStatus" class="status-text"></small>
+          <div class="security-footnote">As senhas ficam guardadas só em formato criptografado e valem em todos os aparelhos da loja.</div>
+        </div>
         <div class="settings-card appearance-card"><div class="settings-card-head"><span class="settings-icon">◐</span><div><h3>Aparência do sistema</h3><p>Escolha a paleta que combina com sua loja.</p></div></div><div class="theme-options"><button data-theme-choice="verde"><i class="verde"></i><span>Verde (padrão)</span></button><button data-theme-choice="laranja"><i class="laranja"></i><span>Laranja</span></button><button data-theme-choice="amarelo"><i class="amarelo"></i><span>Amarelo</span></button><button data-theme-choice="azul"><i class="azul"></i><span>Modo azul</span></button></div></div>
         <!-- [NEXUS HW] Configuração de Hardware (PDV) -->
         <div class="settings-card hardware-card"><div class="settings-card-head"><span class="settings-icon">🖨</span><div><h3>Configuração de Hardware (PDV)</h3><p>Impressora térmica de recibos e leitor de código de barras.</p></div></div>
@@ -201,7 +229,7 @@
           <div class="security-footnote">Dica: na janela de impressão, escolha a impressora térmica, defina <b>Margens: Nenhuma</b> e desmarque <b>Cabeçalhos e rodapés</b>. No Chrome, o modo quiosque (<code>--kiosk-printing</code>) imprime direto, sem diálogo. O leitor USB funciona como teclado: não precisa de driver.</div>
         </div>
         <!-- [/NEXUS HW] -->
-        </div></section>
+        </div></div></section>
     </section>
   </main>
 
@@ -212,6 +240,11 @@
   <!-- Troca de senha obrigatória (depois de redefinição pela Área Master) -->
   <div id="passwordModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle"><div class="modal-card"><div class="eyebrow">SEGURANÇA</div><h2 id="passwordModalTitle">Crie sua nova senha.</h2><p>Sua senha foi redefinida pelo suporte. Escolha uma senha nova para continuar.</p>
     <form id="passwordForm"><label for="newPass1">Nova senha</label><input id="newPass1" type="password" minlength="4" required autocomplete="new-password"><label for="newPass2">Confirmar nova senha</label><input id="newPass2" type="password" minlength="4" required autocomplete="new-password"><div id="passwordFormError" class="form-error"></div><button class="btn btn-primary modal-submit" type="submit">Salvar nova senha →</button></form>
+  </div></div>
+
+  <!-- Autorização por senha (permissões) -->
+  <div id="permModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="permTitle"><div class="modal-card"><button class="modal-x" data-close-perm>×</button><div class="eyebrow">AUTORIZAÇÃO</div><h2 id="permTitle">Senha necessária</h2><p id="permDesc"></p>
+    <form id="permForm"><div id="permFieldWrap"><label for="permPass" id="permLabel">Senha</label><input id="permPass" type="password" autocomplete="off"></div><div id="permError" class="form-error"></div><button class="btn btn-primary modal-submit" type="submit" id="permSubmit">Autorizar →</button></form>
   </div></div>
 
   <!-- Planos dentro do app -->
