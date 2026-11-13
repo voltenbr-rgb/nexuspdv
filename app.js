@@ -1454,6 +1454,24 @@ function closeMasterView() {
   focusScanner();
 }
 $("#masterClose").addEventListener("click", closeMasterView);
+$("#masterPassBtn").addEventListener("click", () => {
+  const f = $("#masterPassForm");
+  f.classList.toggle("hidden");
+  if (!f.classList.contains("hidden")) { f.reset(); $("#mpError").textContent = ""; $("#mpCurrent").focus(); }
+});
+$("#masterPassForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = $("#mpError"), next = $("#mpNew").value;
+  if (next.length < 8) { err.textContent = "A nova senha precisa ter pelo menos 8 caracteres."; return; }
+  if (next !== $("#mpNew2").value) { err.textContent = "As senhas novas não são iguais."; return; }
+  const r = await masterApi("master/password", { body: { current: $("#mpCurrent").value, newPassword: next } });
+  if (!r.ok) {
+    err.textContent = { invalid_credentials: "A senha atual está incorreta.", managed_by_secret: "A senha está definida no painel da Cloudflare (MASTER_PASSWORD).", weak_password: "Senha fraca: use pelo menos 8 caracteres." }[r.data?.error] || "Não foi possível trocar a senha.";
+    return;
+  }
+  $("#masterPassForm").classList.add("hidden");
+  toast("Senha master trocada. Use a nova no próximo acesso.");
+});
 $("#masterRefresh").addEventListener("click", () => loadMaster().then(ok => ok && toast("Painel atualizado.")));
 $("#masterLogout").addEventListener("click", async () => {
   await api("master/logout", { token: masterToken });

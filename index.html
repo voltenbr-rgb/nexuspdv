@@ -261,8 +261,13 @@
   <section id="masterView" class="master-view hidden" aria-labelledby="masterTitle">
     <header class="master-top">
       <div><div class="eyebrow">NEXUS PDV · ÁREA MASTER</div><h1 id="masterTitle">Painel da plataforma</h1><small id="masterUpdated" class="master-updated"></small></div>
-      <div class="master-actions"><button id="masterRefresh" class="btn btn-secondary" type="button">↻ Atualizar</button><button id="masterClose" class="btn btn-secondary" type="button">Fechar</button><button id="masterLogout" class="btn btn-ghost" type="button">Sair</button></div>
+      <div class="master-actions"><button id="masterPassBtn" class="btn btn-secondary" type="button">🔑 Trocar senha</button><button id="masterRefresh" class="btn btn-secondary" type="button">↻ Atualizar</button><button id="masterClose" class="btn btn-secondary" type="button">Fechar</button><button id="masterLogout" class="btn btn-ghost" type="button">Sair</button></div>
     </header>
+    <form id="masterPassForm" class="master-card master-pass hidden">
+      <h3>🔑 Trocar senha master</h3><p class="muted-text">Use pelo menos 8 caracteres, misturando letras e números.</p>
+      <div class="mp-row"><input id="mpCurrent" type="password" placeholder="Senha atual" autocomplete="current-password"><input id="mpNew" type="password" placeholder="Nova senha" autocomplete="new-password"><input id="mpNew2" type="password" placeholder="Confirmar nova senha" autocomplete="new-password"><button class="btn btn-primary" type="submit">Salvar nova senha</button></div>
+      <div id="mpError" class="form-error"></div>
+    </form>
     <div class="kpi-grid">
       <div class="kpi"><span>Cadastrados</span><strong id="kpiTotal">0</strong></div>
       <div class="kpi kpi-green"><span><i class="dot green pulse-dot"></i> Caixas ligados agora</span><strong id="kpiOnline">0</strong></div>

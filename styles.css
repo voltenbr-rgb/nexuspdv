@@ -503,3 +503,7 @@ body[data-theme=azul] .toast{background:#16233b}
 .col-products .col-title{padding-left:4px!important}
 /* Área Master: o pontinho existe só na página inicial, nunca dentro da loja do cliente */
 body.in-app .master-dot{display:none!important}
+.master-pass{margin-bottom:16px}
+.mp-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.mp-row input{flex:1;min-width:160px;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text);font:inherit;font-size:12px;outline:none}
+.mp-row input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--glow)}

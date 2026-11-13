@@ -31,7 +31,7 @@ Só o ADM escolhe a aparência da loja (Configurações ADM → Aparência), e e
 
 ## Área Master
 Pontinho colorido no rodapé da **página inicial**, à direita do texto "Simples para começar. Pronto para crescer.". Ele não aparece dentro da loja dos clientes.
-- Primeiro acesso: código de configuração (de uso único) + criação da senha master (mín. 8 caracteres).
+- Entra só com a senha master. Para trocar: botão **🔑 Trocar senha** no topo da Área Master (mínimo 8 caracteres).
 - Quantas lojas estão cadastradas e quantos caixas estão ligados agora (ícone verde).
 - Status por cor: **verde** ativo (pago) · **amarelo** em teste ou pagamento pendente (até 7 dias do vencimento) · **vermelho** desativado ou vencido há mais de 7 dias.
 - Ativar pacotes: Básico, Completo ou Premium por 15 dias, 30 dias, 3 meses, 6 meses ou 1 ano (soma ao tempo que ainda resta).
