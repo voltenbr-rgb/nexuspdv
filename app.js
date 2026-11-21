@@ -1398,6 +1398,8 @@ $("#masterDot").addEventListener("click", async () => {
   if (masterToken && await loadMaster()) { openMasterView(); return; }
   openMasterLogin();
 });
+// Link direto para a Área Master (usado pelo Nexus Central): https://.../?master
+if (new URLSearchParams(location.search).has("master")) setTimeout(() => $("#masterDot").click(), 400);
 async function openMasterLogin() {
   $("#masterLoginForm").reset();
   $("#masterLoginError").textContent = "";
